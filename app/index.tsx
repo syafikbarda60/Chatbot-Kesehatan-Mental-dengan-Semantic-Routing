@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,10 +18,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../constants/ThemeContext';
 import { Spacing } from '../constants/theme';
+import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { login, isLoading, error } = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Entrance animations
   const anim1 = useRef(new Animated.Value(0)).current;
@@ -33,18 +40,33 @@ export default function LoginScreen() {
     Animated.stagger(120, [
       Animated.parallel([
         Animated.timing(anim1, { toValue: 1, duration: 550, useNativeDriver: true }),
-        Animated.timing(y1,    { toValue: 0, duration: 550, useNativeDriver: true }),
+        Animated.timing(y1, { toValue: 0, duration: 550, useNativeDriver: true }),
       ]),
       Animated.parallel([
         Animated.timing(anim2, { toValue: 1, duration: 500, useNativeDriver: true }),
-        Animated.timing(y2,    { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(y2, { toValue: 0, duration: 500, useNativeDriver: true }),
       ]),
       Animated.parallel([
         Animated.timing(anim3, { toValue: 1, duration: 450, useNativeDriver: true }),
-        Animated.timing(y3,    { toValue: 0, duration: 450, useNativeDriver: true }),
+        Animated.timing(y3, { toValue: 0, duration: 450, useNativeDriver: true }),
       ]),
     ]).start();
   }, []);
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) return;
+    try {
+      const data = await login({ email: email.trim(), password });
+      const role = data.user.role;
+      if (role === 'admin' || role === 'pemangku_jabatan') {
+        router.replace('/admin');
+      } else {
+        router.replace('/home');
+      }
+    } catch {
+      // error sudah disimpan di hook
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -62,12 +84,17 @@ export default function LoginScreen() {
       >
         {/* Branding */}
         <Animated.View style={[s.brand, { opacity: anim1, transform: [{ translateY: y1 }] }]}>
-          <LinearGradient
-            colors={[colors.primary, colors.primaryDim]}
-            style={s.logoWrap}
-          >
-            <Ionicons name="leaf-outline" size={28} color="#fff" />
-          </LinearGradient>
+          <View style={s.logoWrap}>
+            <Image
+              source={require('../assets/image.png')}
+              style={{
+                width: 120, // Anda bisa perbesar ukurannya jika mau, karena tidak ada background lagi
+                height: 120,
+                tintColor: colors.primary
+              }}
+              resizeMode="contain"
+            />
+          </View>
           <Text style={[s.brandName, { color: colors.onSurface }]}>Digital Sanctuary</Text>
           <Text style={[s.brandTagline, { color: colors.onSurfaceVariant }]}>
             Return to your inner quiet.
@@ -94,6 +121,9 @@ export default function LoginScreen() {
                 placeholderTextColor={colors.outline + '70'}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -113,15 +143,24 @@ export default function LoginScreen() {
                 placeholder="••••••••"
                 placeholderTextColor={colors.outline + '70'}
                 secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                editable={!isLoading}
               />
             </View>
           </View>
 
+          {/* Error message */}
+          {error ? (
+            <Text style={[s.errorTxt, { color: colors.error }]}>{error}</Text>
+          ) : null}
+
           {/* Sign In button */}
           <TouchableOpacity
             activeOpacity={0.88}
-            style={s.primaryWrap}
-            onPress={() => router.replace('/home')}
+            style={[s.primaryWrap, isLoading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={isLoading}
           >
             <LinearGradient
               colors={[colors.primary, colors.primaryDim]}
@@ -129,7 +168,10 @@ export default function LoginScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={[s.primaryBtnTxt, { color: colors.onPrimary }]}>Sign In</Text>
+              {isLoading
+                ? <ActivityIndicator color={colors.onPrimary} />
+                : <Text style={[s.primaryBtnTxt, { color: colors.onPrimary }]}>Sign In</Text>
+              }
             </LinearGradient>
           </TouchableOpacity>
 
@@ -211,8 +253,8 @@ const s = StyleSheet.create({
     fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 28,
   },
 
-  field:     { marginBottom: 16 },
-  labelRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  field: { marginBottom: 16 },
+  labelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fieldLabel: {
     fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
@@ -223,10 +265,10 @@ const s = StyleSheet.create({
     borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
   },
   inputIcon: { marginRight: 12 },
-  input:     { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium' },
+  input: { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium' },
 
   primaryWrap: { borderRadius: 20, overflow: 'hidden', marginTop: 8 },
-  primaryBtn:  { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
+  primaryBtn: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
   primaryBtnTxt: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.3 },
 
   divider: {
@@ -248,11 +290,15 @@ const s = StyleSheet.create({
   socialTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
 
   footer: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  footerTxt:  { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
+  footerTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   footerLink: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 
   securityNote: {
     fontSize: 10, fontFamily: 'PlusJakartaSans_500Medium',
     letterSpacing: 1.2, textAlign: 'center', marginBottom: 16,
+  },
+  errorTxt: {
+    fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium',
+    textAlign: 'center', marginBottom: 8, marginTop: -4,
   },
 });

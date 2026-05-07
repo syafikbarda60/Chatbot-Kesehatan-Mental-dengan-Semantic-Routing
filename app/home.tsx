@@ -19,33 +19,6 @@ import { Spacing, BorderRadius } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
-const SPIRIT_MOODS = [
-  {
-    icon: 'water-outline',
-    label: 'Calm',
-    bg: '#cce5fd',     // primaryContainer
-    iconColor: '#496175',
-  },
-  {
-    icon: 'pulse-outline',
-    label: 'Anxious',
-    bg: '#fee2e1',
-    iconColor: '#9f403d',
-  },
-  {
-    icon: 'locate-outline',
-    label: 'Focused',
-    bg: '#d5dffd',     // tertiaryContainer
-    iconColor: '#555f78',
-  },
-  {
-    icon: 'moon-outline',
-    label: 'Tired',
-    bg: '#e3e9ec',     // surfaceContainerHigh
-    iconColor: '#586064',
-  },
-];
-
 const getGreeting = () => {
   const h = new Date().getHours();
   if (h < 11) return 'Selamat pagi';
@@ -68,7 +41,7 @@ export default function HomeScreen() {
   useEffect(() => {
     Animated.delay(600).start(() => {
       Animated.parallel([
-        Animated.timing(calmW,  { toValue: 0.82, duration: 900, useNativeDriver: false }),
+        Animated.timing(calmW,  { toValue: 0.85, duration: 900, useNativeDriver: false }),
         Animated.timing(focusW, { toValue: 0.64, duration: 900, useNativeDriver: false }),
       ]).start();
     });
@@ -76,69 +49,54 @@ export default function HomeScreen() {
 
   const cardW = (width - Spacing.base * 2 - Spacing.base) / 2;
 
+  // Navigation menu items
+  const navItems = [
+    { icon: 'chatbubble-outline', label: 'Chat', route: '/chat' },
+    { icon: 'water-outline', label: 'Mood', route: '/home' },
+    { icon: 'target-outline', label: 'Goal', route: '/stats' },
+    { icon: 'moon-outline', label: 'Night', route: '/home' },
+  ];
+
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + 72 }]}
       >
-        {/* ── Sticky Nav – rendered outside scroll as overlay ── */}
-
         {/* ── Greeting ── */}
         <FadeIn delay={0}>
           <View style={s.greetRow}>
             <View style={s.greetLeft}>
               <Text style={[s.greetTitle, { color: colors.onSurface }]}>
-                {getGreeting()}, Elias
+                {getGreeting()}, Luffy
               </Text>
               <Text style={[s.greetSub, { color: colors.onSurfaceVariant }]}>
-                Bagaimana perasaanmu saat ini?
+                A quiet space for your thoughts to settle.
               </Text>
             </View>
-            <View style={[s.dateBadge, { backgroundColor: colors.surfaceContainerLow }]}>
-              <Text style={[s.dateText, { color: colors.primary }]}>{formatDate()}</Text>
-            </View>
           </View>
         </FadeIn>
 
-        {/* ── Spirit Card ── */}
+        {/* ── Navigation Icons ── */}
         <FadeIn delay={80}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>SPIRIT</Text>
-            {/* 2×2 grid */}
-            <View style={s.moodGrid}>
-              {SPIRIT_MOODS.map((m, i) => {
-                const active = selectedMood === i;
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    style={[
-                      s.moodBtn,
-                      active && { backgroundColor: colors.surfaceContainerLow },
-                    ]}
-                    onPress={() => setSelectedMood(i)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={[s.moodCircle, { backgroundColor: m.bg }]}>
-                      <Ionicons name={m.icon as any} size={28} color={m.iconColor} />
-                    </View>
-                    <Text style={[
-                      s.moodLabel,
-                      {
-                        color: active ? colors.primary : colors.onSurface,
-                        fontFamily: active ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_400Regular',
-                      }
-                    ]}>
-                      {m.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+          <View style={s.navIconsRow}>
+            {navItems.map((item, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[s.navIconBtn, { backgroundColor: colors.surfaceContainerHigh }]}
+                onPress={() => router.push(item.route)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={item.icon as any} size={24} color={colors.primary} />
+                <Text style={[s.navIconLabel, { color: colors.onSurface }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </FadeIn>
 
-        {/* ── Dialogue CTA Card ── */}
+        {/* ── Main CTA: Enter the Dialogue ── */}
         <FadeIn delay={160}>
           <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/chat')} style={s.dialogWrap}>
             <LinearGradient
@@ -147,112 +105,115 @@ export default function HomeScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              {/* Background circle decoration */}
               <View style={s.dialogBlobLarge} />
               <View style={s.dialogBlobSmall} />
-
-              {/* Text content */}
               <View style={s.dialogText}>
-                <Text style={s.dialogTitle}>Butuh teman bicara?</Text>
+                <Text style={s.dialogTitle}>Enter the Dialogue</Text>
                 <Text style={s.dialogDesc}>
-                  Asisten cerdas Sanctuary selalu siap mendengarkan cerita dan tantangan belajarmu.
+                  Your AI companion listens to your thoughts and guides you through challenges.
                 </Text>
-                <TouchableOpacity
-                  style={s.dialogBtn}
-                  onPress={() => router.push('/chat')}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[s.dialogBtnText, { color: colors.primary }]}>Mulai Percakapan</Text>
-                </TouchableOpacity>
               </View>
-
-              {/* Icon circle on right */}
-              <View style={s.dialogIconCircle}>
-                <Ionicons name="chatbubble-outline" size={40} color="rgba(255,255,255,0.85)" />
-              </View>
+              <TouchableOpacity
+                style={s.dialogBtn}
+                onPress={() => router.push('/chat')}
+                activeOpacity={0.85}
+              >
+                <Text style={[s.dialogBtnText, { color: colors.primary }]}>Start Conversation →</Text>
+              </TouchableOpacity>
             </LinearGradient>
           </TouchableOpacity>
         </FadeIn>
 
-        {/* ── Side-by-side: Quote + Progress ── */}
-        <FadeIn delay={240}>
-          <View style={s.twoCol}>
-            {/* Daily Quote */}
-            <View style={[s.quoteCard, { backgroundColor: colors.surfaceContainerLow, width: cardW }]}>
-              {/* Decorative background icon */}
+        {/* ── Quotes Section 1 ── */}
+        <FadeIn delay={200}>
+          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>MINDFUL QUOTE</Text>
+            <View style={s.quoteBgWrapper}>
               <Ionicons
-                name="chatbubble-ellipses"
-                size={72}
-                color={colors.primary + '14'}
+                name="quotes"
+                size={64}
+                color={colors.primary + '15'}
                 style={s.quoteBgIcon}
               />
-              <Text style={[s.sectionEyebrow, { color: colors.outline }]}>KUTIPAN HARI INI</Text>
               <Text style={[s.quoteText, { color: colors.onSurface }]}>
-                "Tidak apa-apa untuk beristirahat. Bunga pun butuh waktu untuk mekar kembali."
+                "The soul always knows what to do to heal itself. The challenge is to silence the mind."
               </Text>
-              <Text style={[s.quoteAuthor, { color: colors.primary }]}>— Sanctuary Journal</Text>
             </View>
-
-            {/* Weekly Progress */}
-            <View style={[s.progressCard, { backgroundColor: colors.surfaceContainerLowest, width: cardW }]}>
-              <Text style={[s.sectionEyebrow, { color: colors.outline }]}>PROGRESS PEKANAN</Text>
-
-              {[
-                { label: 'Ketenangan', anim: calmW, pct: '82%' },
-                { label: 'Fokus Belajar', anim: focusW, pct: '64%' },
-              ].map((item, i) => (
-                <View key={i} style={[s.progressItem, i > 0 && { marginTop: Spacing.base }]}>
-                  <View style={s.progressMeta}>
-                    <Text style={[s.progressLabel, { color: colors.onSurface }]}>{item.label}</Text>
-                    <Text style={[s.progressPct, { color: colors.primary }]}>{item.pct}</Text>
-                  </View>
-                  <View style={[s.progressTrack, { backgroundColor: colors.surfaceContainerHigh }]}>
-                    <Animated.View
-                      style={[
-                        s.progressFill,
-                        {
-                          backgroundColor: colors.primary,
-                          width: item.anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              ))}
-
-              <TouchableOpacity
-                style={[s.reportBtn, { borderColor: colors.outlineVariant + '60' }]}
-                onPress={() => router.push('/stats')}
-                activeOpacity={0.75}
-              >
-                <Text style={[s.reportBtnText, { color: colors.onSurfaceVariant }]}>
-                  Lihat Laporan Detail
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={[s.quoteAuthor, { color: colors.primary }]}>— CAROLINE MYSS</Text>
           </View>
         </FadeIn>
 
-        {/* ── Secondary Insights ── */}
+        {/* ── Inspirational Section ── */}
+        <FadeIn delay={240}>
+          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>ENERGY & AFFIRMATION</Text>
+            <Text style={[s.inspirationalText, { color: colors.onSurface }]}>
+              Energi positif dimulai dari dalam. Fokuskan pikiran pada hal yang dapat kamu kontrol, biarkan sisanya mengalir.
+            </Text>
+            <TouchableOpacity
+              style={[s.journalBtn, { backgroundColor: colors.primary, marginTop: 16 }]}
+              onPress={() => router.push('/journal')}
+            >
+              <Text style={s.journalBtnText}>Simak Jurnal</Text>
+            </TouchableOpacity>
+          </View>
+        </FadeIn>
+
+        {/* ── Quotes Section 2 ── */}
+        <FadeIn delay={280}>
+          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <View style={s.quoteBgWrapper}>
+              <Ionicons
+                name="quotes"
+                size={64}
+                color={colors.primary + '15'}
+                style={s.quoteBgIcon}
+              />
+              <Text style={[s.quoteText, { color: colors.onSurface }]}>
+                "Tidak ada apa-apa untuk berteriak. Bunga pun butuh waktu untuk mekar kembali."
+              </Text>
+            </View>
+            <Text style={[s.quoteAuthor, { color: colors.primary }]}>— STEPHEN LEVINE</Text>
+          </View>
+        </FadeIn>
+
+        {/* ── Progress Section ── */}
         <FadeIn delay={320}>
-          <Text style={[s.insightTitle, { color: colors.onSurface }]}>Untuk Kamu Hari Ini</Text>
-          <View style={s.insightRow}>
+          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>PROGRESS PERAKUAN</Text>
+
             {[
-              { title: 'Meditasi 5 Menit', desc: 'Temukan ketenangan di sela jadwal kuliah.', c1: '#496175', c2: '#3d5569' },
-              { title: 'Tips Manajemen Stress', desc: 'Strategi menghadapi pekan ujian dengan tenang.', c1: '#555f78', c2: '#49536b' },
+              { label: 'Ketenangan', anim: calmW, pct: '85%' },
+              { label: 'Fokus/Hubungan', anim: focusW, pct: '64%' },
             ].map((item, i) => (
-              <TouchableOpacity key={i} style={s.insightCard} activeOpacity={0.88}>
-                <LinearGradient
-                  colors={[item.c2, item.c1]}
-                  style={s.insightGrad}
-                  start={{ x: 0, y: 1 }}
-                  end={{ x: 0, y: 0 }}
-                >
-                  <Text style={s.insightCardTitle}>{item.title}</Text>
-                  <Text style={s.insightCardDesc}>{item.desc}</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <View key={i} style={[s.progressItem, i > 0 && { marginTop: Spacing.base }]}>
+                <View style={s.progressMeta}>
+                  <Text style={[s.progressLabel, { color: colors.onSurface }]}>{item.label}</Text>
+                  <Text style={[s.progressPct, { color: colors.primary }]}>{item.pct}</Text>
+                </View>
+                <View style={[s.progressTrack, { backgroundColor: colors.surfaceContainerHigh }]}>
+                  <Animated.View
+                    style={[
+                      s.progressFill,
+                      {
+                        backgroundColor: colors.primary,
+                        width: item.anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
             ))}
+
+            <TouchableOpacity
+              style={[s.reportBtn, { borderColor: colors.outlineVariant + '60' }]}
+              onPress={() => router.push('/stats')}
+              activeOpacity={0.75}
+            >
+              <Text style={[s.reportBtnText, { color: colors.onSurfaceVariant }]}>
+                Lihat Laporan Detail
+              </Text>
+            </TouchableOpacity>
           </View>
         </FadeIn>
 
@@ -320,15 +281,15 @@ const s = StyleSheet.create({
   },
   greetLeft: { flex: 1 },
   greetTitle: {
-    fontSize: 34,
+    fontSize: 32,
     fontFamily: 'PlusJakartaSans_800ExtraBold',
     letterSpacing: -1,
-    lineHeight: 40,
+    lineHeight: 38,
   },
   greetSub: {
-    fontSize: 15,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    marginTop: 4,
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    marginTop: 6,
   },
   dateBadge: {
     paddingHorizontal: 14,
@@ -337,6 +298,28 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   dateText: { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.2 },
+
+  // Navigation Icons Row
+  navIconsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 32,
+  },
+  navIconBtn: {
+    flex: 1,
+    height: 100,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  navIconLabel: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    textAlign: 'center',
+  },
 
   // Card base
   card: {
@@ -354,37 +337,16 @@ const s = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_700Bold',
     letterSpacing: 2.5,
     textTransform: 'uppercase',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-
-  // Spirit 2×2 grid
-  moodGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -8,
-  },
-  moodBtn: {
-    width: '50%',
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    gap: 12,
-  },
-  moodCircle: {
-    width: 64, height: 64, borderRadius: 32,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  moodLabel: { fontSize: 14, textAlign: 'center' },
 
   // Dialogue CTA
-  dialogWrap: { marginBottom: 16 },
+  dialogWrap: { marginBottom: 24 },
   dialogCard: {
     borderRadius: 24,
-    padding: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 24,
+    padding: 28,
+    flexDirection: 'column',
+    gap: 16,
     overflow: 'hidden',
     shadowColor: '#496175',
     shadowOffset: { width: 0, height: 8 },
@@ -404,94 +366,75 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     bottom: -30, left: 80,
   },
-  dialogText: { flex: 1, gap: 12 },
+  dialogText: { gap: 12, zIndex: 1 },
   dialogTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: 'PlusJakartaSans_800ExtraBold',
     color: '#ffffff',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
   dialogDesc: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'PlusJakartaSans_400Regular',
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
   },
   dialogBtn: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     borderRadius: 999,
     alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  dialogBtnText: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
-  dialogIconCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0,
-  },
+  dialogBtnText: { fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  // Two-col row
-  twoCol: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-
-  // Quote card
-  quoteCard: {
-    borderRadius: 24, padding: 24,
+  // Quote
+  quoteBgWrapper: {
+    position: 'relative',
+    marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#2b3437',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05, shadowRadius: 16, elevation: 2,
   },
   quoteBgIcon: {
     position: 'absolute',
-    top: -10, right: -10,
-    transform: [{ rotate: '15deg' }],
+    top: -20, right: -10,
+    opacity: 0.15,
   },
   quoteText: {
+    fontSize: 16,
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    lineHeight: 24,
+    marginBottom: 0,
+    zIndex: 1,
+  },
+  quoteAuthor: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_700Bold',
+    letterSpacing: 0.5,
+  },
+
+  // Inspirational text
+  inspirationalText: {
     fontSize: 14,
     fontFamily: 'PlusJakartaSans_500Medium',
     lineHeight: 22,
-    marginBottom: 12,
-    zIndex: 1,
+    marginBottom: 4,
   },
-  quoteAuthor: { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  // Progress card
-  progressCard: {
-    borderRadius: 24, padding: 24,
-    shadowColor: '#2b3437',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05, shadowRadius: 16, elevation: 2,
-  },
+  // Progress section
   progressItem: {},
-  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progressLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' },
-  progressPct:   { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' },
-  progressTrack: { height: 5, borderRadius: 999, overflow: 'hidden' },
+  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  progressLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
+  progressPct:   { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
+  progressTrack: { height: 6, borderRadius: 999, overflow: 'hidden' },
   progressFill:  { height: '100%', borderRadius: 999 },
   reportBtn: {
-    marginTop: 16, borderWidth: 1, borderRadius: 16,
+    marginTop: 18, borderWidth: 1, borderRadius: 16,
     paddingVertical: 12, alignItems: 'center',
   },
-  reportBtnText: { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' },
+  reportBtnText: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  // Insight row
-  insightTitle: {
-    fontSize: 15,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
-    letterSpacing: -0.3,
-    marginBottom: 12,
-    marginTop: 4,
-    paddingHorizontal: 2,
-  },
-  insightRow: { flexDirection: 'row', gap: 12 },
-  insightCard: { flex: 1, borderRadius: 24, overflow: 'hidden', height: 150 },
-  insightGrad: { flex: 1, justifyContent: 'flex-end', padding: 20 },
-  insightCardTitle: {
-    fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', color: '#fff', marginBottom: 3,
-  },
-  insightCardDesc: {
-    fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', color: 'rgba(255,255,255,0.75)',
-  },
+  // Journal Button (reused)
+  journalBtn: { paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
+  journalBtnText: { color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
 });

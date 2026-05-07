@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,27 +9,82 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
+  Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../constants/ThemeContext';
-import { Spacing } from '../constants/theme';
+import { apiRegister, saveToken, saveUser } from '../utils/api';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
   const anim = useRef(new Animated.Value(0)).current;
-  const y    = useRef(new Animated.Value(20)).current;
+  const y = useRef(new Animated.Value(20)).current;
+
+  const [nama, setNama] = useState('');
+  const [email, setEmail] = useState('');
+  const [nim, setNim] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(anim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(y,    { toValue: 0, duration: 600, useNativeDriver: true }),
+      Animated.timing(y, { toValue: 0, duration: 600, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  const handleRegister = async () => {
+    if (!nama.trim() || !email.trim() || !password.trim()) {
+      setError('Nama, email, dan password wajib diisi');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password minimal 8 karakter');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res: any = await apiRegister({
+        email: email.trim(),
+        password,
+        nama: nama.trim(),
+        nim: nim.trim() || undefined,
+        role: 'mahasiswa',
+      });
+
+      if (res.session) {
+        // Auto login jika session langsung ada (email confirmation off)
+        await saveToken(res.session.access_token);
+        await saveUser({
+          user_id: res.user_id,
+          email: email.trim(),
+          nama: nama.trim(),
+          nim: nim.trim() || undefined,
+          role: 'mahasiswa',
+        });
+        router.replace('/home');
+      } else {
+        // Butuh login manual atau cek email
+        Alert.alert('Registrasi Berhasil', 'Silakan login dengan akun baru kamu.');
+        router.replace('/');
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Registrasi gagal. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -60,9 +115,14 @@ export default function RegisterScreen() {
 
         {/* Header */}
         <Animated.View style={[s.header, { opacity: anim, transform: [{ translateY: y }] }]}>
+          <Image
+            source={require('../assets/image.png')}
+            style={{ width: 150, height: 150, alignSelf: 'center' }}
+            resizeMode="contain"
+          />
           <Text style={[s.title, { color: colors.onSurface }]}>Create your account.</Text>
           <Text style={[s.subtitle, { color: colors.onSurfaceVariant }]}>
-            Start your 14-day mindful journey today.
+            Start your mindful journey today.
           </Text>
         </Animated.View>
 
@@ -72,28 +132,51 @@ export default function RegisterScreen() {
         >
           {/* Full Name */}
           <View style={s.field}>
-            <Text style={[s.fieldLabel, { color: colors.outline }]}>FULL NAME</Text>
+            <Text style={[s.fieldLabel, { color: colors.outline }]}>NAMA LENGKAP</Text>
             <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
               <Ionicons name="person-outline" size={17} color={colors.outline} style={s.icon} />
               <TextInput
                 style={[s.input, { color: colors.onSurface }]}
-                placeholder="Alex Rivera"
+                placeholder="Nama lengkap kamu"
                 placeholderTextColor={colors.outline + '70'}
+                value={nama}
+                onChangeText={setNama}
+                editable={!isLoading}
+              />
+            </View>
+          </View>
+
+          {/* NIM */}
+          <View style={s.field}>
+            <Text style={[s.fieldLabel, { color: colors.outline }]}>NIM (opsional)</Text>
+            <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
+              <Ionicons name="id-card-outline" size={17} color={colors.outline} style={s.icon} />
+              <TextInput
+                style={[s.input, { color: colors.onSurface }]}
+                placeholder="Nomor Induk Mahasiswa"
+                placeholderTextColor={colors.outline + '70'}
+                keyboardType="number-pad"
+                value={nim}
+                onChangeText={setNim}
+                editable={!isLoading}
               />
             </View>
           </View>
 
           {/* University Email */}
           <View style={s.field}>
-            <Text style={[s.fieldLabel, { color: colors.outline }]}>UNIVERSITY EMAIL</Text>
+            <Text style={[s.fieldLabel, { color: colors.outline }]}>EMAIL</Text>
             <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
               <Ionicons name="at-outline" size={17} color={colors.outline} style={s.icon} />
               <TextInput
                 style={[s.input, { color: colors.onSurface }]}
-                placeholder="alex.r@university.ac.id"
+                placeholder="email@university.ac.id"
                 placeholderTextColor={colors.outline + '70'}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
               />
             </View>
           </View>
@@ -105,29 +188,27 @@ export default function RegisterScreen() {
               <Ionicons name="lock-open-outline" size={17} color={colors.outline} style={s.icon} />
               <TextInput
                 style={[s.input, { color: colors.onSurface }]}
-                placeholder="Minimum 8 characters"
+                placeholder="Minimum 8 karakter"
                 placeholderTextColor={colors.outline + '70'}
                 secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                editable={!isLoading}
               />
             </View>
           </View>
 
-          {/* Terms */}
-          <View style={s.termsRow}>
-            <View style={[s.checkbox, { borderColor: colors.outlineVariant }]} />
-            <Text style={[s.termsText, { color: colors.onSurfaceVariant }]}>
-              By creating an account, you agree to our{' '}
-              <Text style={{ color: colors.primary }}>Privacy Policy</Text>
-              {' '}and{' '}
-              <Text style={{ color: colors.primary }}>Terms of Service</Text>.
-            </Text>
-          </View>
+          {/* Error */}
+          {error ? (
+            <Text style={[s.errorTxt, { color: colors.error }]}>{error}</Text>
+          ) : null}
 
           {/* CTA */}
           <TouchableOpacity
             activeOpacity={0.88}
-            style={s.primaryWrap}
-            onPress={() => router.replace('/home')}
+            style={[s.primaryWrap, isLoading && { opacity: 0.7 }]}
+            onPress={handleRegister}
+            disabled={isLoading}
           >
             <LinearGradient
               colors={[colors.primary, colors.primaryDim]}
@@ -135,7 +216,10 @@ export default function RegisterScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={[s.primaryBtnTxt, { color: colors.onPrimary }]}>Join Sanctuary</Text>
+              {isLoading
+                ? <ActivityIndicator color={colors.onPrimary} />
+                : <Text style={[s.primaryBtnTxt, { color: colors.onPrimary }]}>Join Sanctuary</Text>
+              }
             </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
@@ -218,23 +302,16 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
   },
-  icon:  { marginRight: 12 },
+  icon: { marginRight: 12 },
   input: { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium' },
 
-  termsRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    gap: 10, marginBottom: 20, marginTop: 4,
-  },
-  checkbox: {
-    width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, marginTop: 2,
-  },
-  termsText: {
-    flex: 1, fontSize: 12,
-    fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 18,
+  errorTxt: {
+    fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium',
+    textAlign: 'center', marginBottom: 12, marginTop: -4,
   },
 
   primaryWrap: { borderRadius: 20, overflow: 'hidden' },
-  primaryBtn:  { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
+  primaryBtn: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
   primaryBtnTxt: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.2 },
 
   bentoRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
@@ -242,9 +319,9 @@ const s = StyleSheet.create({
     flex: 1, borderRadius: 24, padding: 24, gap: 8,
   },
   bentoTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
-  bentoDesc:  { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 18 },
+  bentoDesc: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 18 },
 
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  footerTxt:  { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
+  footerTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   footerLink: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 });

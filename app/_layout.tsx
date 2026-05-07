@@ -44,6 +44,7 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="register" />
           <Stack.Screen name="home" />
+          <Stack.Screen name="admin" />
           <Stack.Screen name="chat" />
           <Stack.Screen name="journal" />
           <Stack.Screen name="stats" />
