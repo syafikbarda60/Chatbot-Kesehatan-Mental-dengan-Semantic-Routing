@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Animated } from 'react-native';
-import { useAnimatedEntrance } from '../../hooks/useAnimatedEntrance';
+import { useAnimatedEntrance } from '@prototype/ui-shared';
 
 interface FadeInProps {
   children: React.ReactNode;
@@ -30,3 +30,4 @@ export const FadeIn: React.FC<FadeInProps> = ({
 };
 
 export default FadeIn;
+

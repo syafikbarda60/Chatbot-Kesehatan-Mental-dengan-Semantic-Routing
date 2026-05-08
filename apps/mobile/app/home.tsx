@@ -14,8 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '../constants/ThemeContext';
-import { Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Spacing, BorderRadius } from '@prototype/ui-shared';
 
 const { width } = Dimensions.get('window');
 
@@ -438,3 +438,4 @@ const s = StyleSheet.create({
   journalBtn: { paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
   journalBtnText: { color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
 });
+

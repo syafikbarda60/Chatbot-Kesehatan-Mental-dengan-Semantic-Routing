@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 interface Props { options: string[]; onSelect: (o: string) => void }
 
@@ -43,3 +43,4 @@ const styles = StyleSheet.create({
 });
 
 export default QuickReply;
+

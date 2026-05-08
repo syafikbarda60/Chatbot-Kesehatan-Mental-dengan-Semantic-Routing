@@ -1,8 +1,8 @@
 // components/ui/Divider.tsx
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
-import { Spacing } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Spacing } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 interface DividerProps {
   vertical?: boolean;
@@ -35,3 +35,4 @@ const styles = StyleSheet.create({
 });
 
 export default Divider;
+

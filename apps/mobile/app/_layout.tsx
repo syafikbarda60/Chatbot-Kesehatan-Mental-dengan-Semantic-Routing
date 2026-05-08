@@ -11,8 +11,8 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ThemeProvider } from '../constants/ThemeContext';
-import { SanctuaryColors } from '../constants/theme';
+import { ThemeProvider } from '@prototype/ui-shared';
+import { SanctuaryColors } from '@prototype/ui-shared';
 import { AnimatedSplashScreen } from '../components/AnimatedSplashScreen';
 
 SplashScreen.preventAutoHideAsync();
@@ -57,3 +57,4 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+

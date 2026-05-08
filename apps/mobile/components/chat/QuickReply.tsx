@@ -1,8 +1,8 @@
 // components/chat/QuickReply.tsx
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Typography, Spacing, BorderRadius } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 interface Props { options: string[]; onSelect: (option: string) => void }
 
@@ -40,3 +40,4 @@ const styles = StyleSheet.create({
 });
 
 export default QuickReply;
+

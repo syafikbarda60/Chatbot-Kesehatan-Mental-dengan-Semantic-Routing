@@ -14,8 +14,8 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../constants/ThemeContext';
-import { Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Spacing, BorderRadius } from '@prototype/ui-shared';
 import { apiSaveJournal } from '@prototype/api-client';
 
 const MOODS = [
@@ -193,5 +193,6 @@ const s = StyleSheet.create({
   },
   doneText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
 });
+
 
 

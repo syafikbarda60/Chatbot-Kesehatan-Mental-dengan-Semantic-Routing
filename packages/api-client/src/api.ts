@@ -80,6 +80,22 @@ export async function apiRegister(payload: any) {
   });
 }
 
+export async function apiRequestPasswordReset(email: string) {
+  return apiFetch('/auth/reset-password/request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+    auth: false,
+  });
+}
+
+export async function apiConfirmPasswordReset(email: string, otp: string, new_password: string) {
+  return apiFetch('/auth/reset-password/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ email, otp, new_password }),
+    auth: false,
+  });
+}
+
 // ── Guardrail / Hotline ────────────────────────────────────────────────────────
 
 export async function apiGetHotline() {

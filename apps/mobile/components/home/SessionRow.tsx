@@ -2,8 +2,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Typography, Spacing } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 export interface SessionData {
   label: string;
@@ -49,3 +49,4 @@ const styles = StyleSheet.create({
 });
 
 export default SessionRow;
+

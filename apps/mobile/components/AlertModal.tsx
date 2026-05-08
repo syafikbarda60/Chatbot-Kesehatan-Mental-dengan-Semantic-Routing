@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 interface Props {
   visible: boolean;
@@ -202,3 +202,4 @@ const styles = StyleSheet.create({
 });
 
 export default AlertModal;
+

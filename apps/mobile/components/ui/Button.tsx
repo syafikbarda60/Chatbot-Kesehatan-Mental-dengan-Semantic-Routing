@@ -10,8 +10,8 @@ import {
   TextStyle,
   ActivityIndicator,
 } from 'react-native';
-import { Typography, Spacing, BorderRadius } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -92,3 +92,4 @@ const styles = StyleSheet.create({
 });
 
 export default Button;
+

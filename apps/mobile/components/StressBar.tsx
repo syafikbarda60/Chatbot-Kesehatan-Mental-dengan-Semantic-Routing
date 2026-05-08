@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius, StressLevel } from '../constants/theme';
+import { Colors, Typography, Spacing, BorderRadius, StressLevel } from '@prototype/ui-shared';
 
 interface Props { level: number }
 
@@ -60,3 +60,4 @@ const styles = StyleSheet.create({
 });
 
 export default StressBar;
+

@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../constants/ThemeContext';
+import { useTheme } from '@prototype/ui-shared';
 import { apiFetch, apiLogout, getUser } from '@prototype/api-client';
 
 interface UserRow {
@@ -230,5 +230,6 @@ const s = StyleSheet.create({
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: 12 },
   errorTxt: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', flex: 1 },
 });
+
 
 

@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SanctuaryColors, BorderRadius, Spacing } from '../constants/theme';
+import { SanctuaryColors, BorderRadius, Spacing } from '@prototype/ui-shared';
 
 const DOT = 8;
 
@@ -77,3 +77,4 @@ const styles = StyleSheet.create({
 });
 
 export default TypingIndicator;
+

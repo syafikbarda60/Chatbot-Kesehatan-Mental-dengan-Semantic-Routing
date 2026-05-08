@@ -13,8 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '../constants/ThemeContext';
-import { Spacing } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Spacing } from '@prototype/ui-shared';
 
 const { width } = Dimensions.get('window');
 
@@ -298,3 +298,4 @@ const s = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 24,
   },
 });
+

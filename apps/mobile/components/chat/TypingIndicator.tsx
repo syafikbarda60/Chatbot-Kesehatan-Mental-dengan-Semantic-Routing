@@ -2,8 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BorderRadius, Spacing } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { BorderRadius, Spacing } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 const DOT = 7;
 
@@ -80,3 +80,4 @@ const styles = StyleSheet.create({
 });
 
 export default TypingIndicator;
+

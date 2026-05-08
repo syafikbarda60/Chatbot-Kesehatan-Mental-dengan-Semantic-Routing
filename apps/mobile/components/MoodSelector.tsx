@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
+import { Colors, Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 const MOODS = [
   { emoji: '😄', label: 'Bahagia', value: 1 },
@@ -58,3 +58,4 @@ const styles = StyleSheet.create({
 });
 
 export default MoodSelector;
+

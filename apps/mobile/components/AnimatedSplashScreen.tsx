@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Animated, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { SanctuaryColors } from '../constants/theme';
+import { SanctuaryColors } from '@prototype/ui-shared';
 
 interface Props {
   onAnimationComplete: () => void;
@@ -66,3 +66,4 @@ const styles = StyleSheet.create({
     height: 160,
   }
 });
+

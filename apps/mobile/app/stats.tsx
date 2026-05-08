@@ -14,8 +14,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '../constants/ThemeContext';
-import { Typography, Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 const { width } = Dimensions.get('window');
 
@@ -338,3 +338,4 @@ const styles = StyleSheet.create({
   },
   recBtnText: { fontSize: Typography.sm, fontFamily: 'PlusJakartaSans_700Bold' },
 });
+

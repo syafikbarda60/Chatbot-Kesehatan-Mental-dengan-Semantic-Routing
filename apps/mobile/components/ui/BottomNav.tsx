@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../constants/ThemeContext';
+import { useTheme } from '@prototype/ui-shared';
 
 type Tab = { label: string; icon: string; iconActive: string; route: string };
 
@@ -89,3 +89,4 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 10, letterSpacing: 0.2 },
 });
+

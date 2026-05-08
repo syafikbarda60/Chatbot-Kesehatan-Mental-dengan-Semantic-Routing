@@ -3,8 +3,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../constants/ThemeContext';
-import { Typography, Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 export type MessageSender = 'user' | 'ai';
 export interface Message {
@@ -111,3 +111,4 @@ const styles = StyleSheet.create({
 });
 
 export default ChatBubble;
+

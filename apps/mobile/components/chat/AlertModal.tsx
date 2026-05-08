@@ -3,8 +3,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Modal, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui';
-import { Typography, Spacing, BorderRadius } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 interface Props {
   visible: boolean;
@@ -149,3 +149,4 @@ const styles = StyleSheet.create({
 });
 
 export default AlertModal;
+

@@ -4,5 +4,10 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.4",
+    "expo-asset": "^55.0.17",
+    "semver": "^7.7.4"
+  }
 }

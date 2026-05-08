@@ -16,9 +16,9 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../constants/ThemeContext';
-import { Spacing } from '../constants/theme';
-import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '@prototype/ui-shared';
+import { Spacing } from '@prototype/ui-shared';
+import { useAuth } from '@prototype/ui-shared';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -132,7 +132,7 @@ export default function LoginScreen() {
           <View style={s.field}>
             <View style={s.labelRow}>
               <Text style={[s.fieldLabel, { color: colors.outline }]}>PASSWORD</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/forgot-password')}>
                 <Text style={[s.forgotText, { color: colors.primary }]}>Forgot?</Text>
               </TouchableOpacity>
             </View>
@@ -302,3 +302,5 @@ const s = StyleSheet.create({
     textAlign: 'center', marginBottom: 8, marginTop: -4,
   },
 });
+
+

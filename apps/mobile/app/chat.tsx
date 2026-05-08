@@ -18,8 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { useChat } from '../hooks/useChat';
 import { ChatBubble, TypingIndicator, StressBar, QuickReply, AlertModal } from '../components/chat';
-import { useTheme } from '../constants/ThemeContext';
-import { Spacing, BorderRadius } from '../constants/theme';
+import { useTheme } from '@prototype/ui-shared';
+import { Spacing, BorderRadius } from '@prototype/ui-shared';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -297,3 +297,4 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
 });
+

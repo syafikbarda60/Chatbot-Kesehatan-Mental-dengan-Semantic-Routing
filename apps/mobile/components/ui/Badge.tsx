@@ -2,7 +2,7 @@
 // Small status indicator pill — used for "AI Aktif", stress labels, etc.
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { Typography, Spacing, BorderRadius } from '../../constants/theme';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 
 interface BadgeProps {
   label: string;
@@ -43,3 +43,4 @@ const styles = StyleSheet.create({
 });
 
 export default Badge;
+

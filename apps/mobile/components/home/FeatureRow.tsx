@@ -2,8 +2,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Typography, Spacing, BorderRadius } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 export interface FeatureData {
   icon: string;
@@ -46,3 +46,4 @@ const styles = StyleSheet.create({
 });
 
 export default FeatureRow;
+

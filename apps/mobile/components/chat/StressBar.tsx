@@ -2,8 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Badge } from '../ui';
-import { Typography, Spacing, BorderRadius, StressLevel } from '../../constants/theme';
-import { useTheme } from '../../constants/ThemeContext';
+import { Typography, Spacing, BorderRadius, StressLevel } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 
 interface Props { level: number }
 
@@ -47,3 +47,4 @@ const styles = StyleSheet.create({
 });
 
 export default StressBar;
+
