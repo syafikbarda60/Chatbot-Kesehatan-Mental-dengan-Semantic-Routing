@@ -2,7 +2,7 @@
 // Auth state management — login, logout, load persisted user.
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiLogin, apiLogout, getUser, clearToken, type LoginPayload, type LoginResponse } from '../utils/api';
+import { apiLogin, getStoredUser, clearAuth, type LoginPayload, type LoginResponse } from '@prototype/api-client';
 
 export interface AuthUser {
   user_id: string;
@@ -28,7 +28,7 @@ export function useAuth(): UseAuthReturn {
 
   // Load persisted user on mount
   useEffect(() => {
-    getUser<AuthUser>().then((u) => {
+    getStoredUser<AuthUser>().then((u: AuthUser | null) => {
       setUser(u);
       setLoading(false);
     });
@@ -51,7 +51,7 @@ export function useAuth(): UseAuthReturn {
   }, []);
 
   const logout = useCallback(async () => {
-    await apiLogout();
+    await clearAuth();
     setUser(null);
   }, []);
 
@@ -64,3 +64,4 @@ export function useAuth(): UseAuthReturn {
     logout,
   };
 }
+

@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../constants/ThemeContext';
 import { Spacing, BorderRadius } from '../constants/theme';
-import { apiSaveJournal } from '../utils/api';
+import { apiSaveJournal } from '@prototype/api-client';
 
 const MOODS = [
   { id: 'Calm', label: 'Calm', icon: 'water-outline' },
@@ -193,3 +193,5 @@ const s = StyleSheet.create({
   },
   doneText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
 });
+
+

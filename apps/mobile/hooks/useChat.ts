@@ -5,9 +5,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated } from 'react-native';
-import { analyzeStress } from '../utils/stressDetection';
-import { QUICK_REPLIES } from '../utils/aiResponses';
-import { apiChat } from '../utils/api';
+import { analyzeStress, QUICK_REPLIES } from '@prototype/utils';
+import { apiChat } from '@prototype/api-client';
 import type { Message } from '../components/chat/ChatBubble';
 
 export interface UseChatReturn {
@@ -159,3 +158,5 @@ export function useChat(): UseChatReturn {
     isHighRisk,
   };
 }
+
+

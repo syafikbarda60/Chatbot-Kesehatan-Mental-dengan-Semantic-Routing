@@ -1,50 +1,13 @@
-// utils/api.ts
-// Central API client for Sanctuary backend.
-// All fetch calls go through here — token management, base URL, error handling.
-
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getToken, saveToken, saveUser } from './storage';
 
-// ── Config ────────────────────────────────────────────────────────────────────
-// Ganti sesuai environment:
-//   Web/browser    → 'http://localhost:8000'
-//   Android emu    → 'http://10.0.2.2:8000'
-//   Device fisik   → 'http://192.168.x.x:8000'  (IP lokal komputer)
 export const API_BASE_URL = __DEV__
   ? (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000')
   : 'https://your-production-url.com';
 
-const TOKEN_KEY = 'sanctuary_access_token';
-const USER_KEY  = 'sanctuary_user';
-
-// ── Token storage ─────────────────────────────────────────────────────────────
-
-export async function saveToken(token: string) {
-  await AsyncStorage.setItem(TOKEN_KEY, token);
-}
-
-export async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem(TOKEN_KEY);
-}
-
-export async function clearToken() {
-  await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
-}
-
-export async function saveUser(user: object) {
-  await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-
-export async function getUser<T = Record<string, unknown>>(): Promise<T | null> {
-  const raw = await AsyncStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
-}
-
-// ── Core fetch wrapper ────────────────────────────────────────────────────────
-
 interface FetchOptions extends RequestInit {
-  auth?: boolean;   // tambah Authorization header otomatis (default true)
-  base?: string;    // override base URL
+  auth?: boolean;
+  base?: string;
 }
 
 export async function apiFetch<T = unknown>(
@@ -77,7 +40,7 @@ export async function apiFetch<T = unknown>(
   return res.json() as Promise<T>;
 }
 
-// ── CB-09: login ──────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 export interface LoginPayload {
   email: string;
@@ -109,10 +72,6 @@ export async function apiLogin(payload: LoginPayload): Promise<LoginResponse> {
   return data;
 }
 
-export async function apiLogout() {
-  await clearToken();
-}
-
 export async function apiRegister(payload: any) {
   return apiFetch('/auth/register', {
     method: 'POST',
@@ -121,7 +80,7 @@ export async function apiRegister(payload: any) {
   });
 }
 
-// ── CB-03: hotline ────────────────────────────────────────────────────────────
+// ── Guardrail / Hotline ────────────────────────────────────────────────────────
 
 export async function apiGetHotline() {
   return apiFetch<{ hotlines: { nama: string; nomor: string; deskripsi?: string }[] }>(
@@ -130,8 +89,6 @@ export async function apiGetHotline() {
   );
 }
 
-// ── CB-04: guardrail check ────────────────────────────────────────────────────
-
 export async function apiCheckGuardrail(message: string) {
   return apiFetch<{ is_high_risk: boolean; route: string; response: string | null }>(
     '/guardrail/check',
@@ -139,7 +96,7 @@ export async function apiCheckGuardrail(message: string) {
   );
 }
 
-// ── POST /chat — unified chat (CB-04+05+07+08) ────────────────────────────────
+// ── Chat ───────────────────────────────────────────────────────────────────────
 
 export interface ChatPayload {
   message: string;
@@ -159,11 +116,11 @@ export async function apiChat(payload: ChatPayload): Promise<ChatResponse> {
   });
 }
 
-// ── CB-01: submit assessment ──────────────────────────────────────────────────
+// ── Assessment ─────────────────────────────────────────────────────────────────
 
 export interface AnswerItem {
   question_id: number;
-  score: number;  // 0–3
+  score: number;
 }
 
 export interface AssessmentPayload {
@@ -179,7 +136,7 @@ export async function apiSubmitAssessment(payload: AssessmentPayload) {
   });
 }
 
-// ── Jadwal & Booking ──────────────────────────────────────────────────────────
+// ── Jadwal / Booking ───────────────────────────────────────────────────────────
 
 export async function apiGetJadwal() {
   return apiFetch<{ jadwal: object[] }>('/jadwal');
@@ -196,13 +153,40 @@ export async function apiGetBookingSaya() {
   return apiFetch<{ bookings: object[] }>('/booking/saya');
 }
 
-// ── Dashboard (operator/konselor) ─────────────────────────────────────────────
+// ── Dashboard / Operator ───────────────────────────────────────────────────────
 
-export async function apiGetDashboard() {
-  return apiFetch('/dashboard/data');
+export interface DashboardData {
+  total_assessments: number;
+  severity_distribution: {
+    minimal: number;
+    mild: number;
+    moderate: number;
+    severe: number;
+  };
+  weekly_trend: { date: string; count: number }[];
+  recent_severe: { assessment_id: string; user_id: string; score: number; taken_at: string }[];
+  guardrail_trigger_count: number;
+  pending_bookings: { booking_id: string; user_id: string; created_at: string }[];
 }
 
-// ── Journaling (CB-14+) ───────────────────────────────────────────────────────
+export async function apiGetDashboard(): Promise<DashboardData> {
+  return apiFetch<DashboardData>('/dashboard/data');
+}
+
+export interface UserRow {
+  user_id: string;
+  nama: string;
+  email: string;
+  nim?: string;
+  role: string;
+  created_at: string;
+}
+
+export async function apiGetAccounts(): Promise<{ users: UserRow[]; total: number }> {
+  return apiFetch<{ users: UserRow[]; total: number }>('/accounts');
+}
+
+// ── Journaling ─────────────────────────────────────────────────────────────────
 
 export interface JournalPayload {
   content: string;

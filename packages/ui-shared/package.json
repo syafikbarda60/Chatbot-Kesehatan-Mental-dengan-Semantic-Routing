@@ -1,0 +1,9 @@
+{
+  "name": "@prototype/ui-shared",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "private": true,
+  "dependencies": {
+    "@prototype/api-client": "*"
+  }
+}

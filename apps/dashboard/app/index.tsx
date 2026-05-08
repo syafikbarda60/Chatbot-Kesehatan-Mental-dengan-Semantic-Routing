@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import { apiLogin } from '../utils/api';
+import { apiLogin } from '@prototype/api-client';
 
 const C = {
   bg: '#f1f4f9',
@@ -192,3 +192,5 @@ const s = StyleSheet.create({
   btnTxt: { color: '#fff', fontSize: 15, fontWeight: '700' },
   hint: { fontSize: 11, color: C.muted, textAlign: 'center', marginTop: 20 },
 });
+
+

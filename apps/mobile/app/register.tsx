@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../constants/ThemeContext';
-import { apiRegister, saveToken, saveUser } from '../utils/api';
+import { apiRegister, saveToken, saveUser } from '@prototype/api-client';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -325,3 +325,5 @@ const s = StyleSheet.create({
   footerTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   footerLink: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 });
+
+

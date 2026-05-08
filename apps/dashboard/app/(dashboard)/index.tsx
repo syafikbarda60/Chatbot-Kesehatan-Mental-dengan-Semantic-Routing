@@ -7,9 +7,9 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { router } from 'expo-router';
 import {
-  apiGetDashboard, apiGetAccounts, clearAuth,
-  getStoredUser, type DashboardData, type UserRow,
-} from '../../utils/api';
+  apiGetDashboard, apiGetAccounts, clearAuthSync,
+  getStoredUserSync, type DashboardData, type UserRow,
+} from '@prototype/api-client';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const Colors = {
@@ -70,7 +70,7 @@ export default function DashboardScreen() {
   const [errorDB, setErrorDB]     = useState<string | null>(null);
   const [search, setSearch]       = useState('');
 
-  const adminUser = getStoredUser<{ nama: string; email: string; role: string }>();
+  const adminUser = getStoredUserSync<{ nama: string; email: string; role: string }>();
 
   useEffect(() => {
     // Guard: redirect ke login kalau tidak ada token
@@ -107,7 +107,7 @@ export default function DashboardScreen() {
   };
 
   const handleLogout = () => {
-    clearAuth();
+    clearAuthSync();
     router.replace('/');
   };
 
@@ -120,9 +120,9 @@ export default function DashboardScreen() {
   // Chart data from weekly_trend
   const trend = dashboard?.weekly_trend ?? [];
   const chartLabels = trend.length
-    ? trend.map((t) => t.date.slice(5))   // MM-DD
+    ? trend.map((t: any) => t.date.slice(5))   // MM-DD
     : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-  const chartValues = trend.length ? trend.map((t) => t.count) : [0, 0, 0, 0, 0, 0, 0];
+  const chartValues = trend.length ? trend.map((t: any) => t.count) : [0, 0, 0, 0, 0, 0, 0];
   const lineChartData = {
     labels: chartLabels,
     datasets: [{ data: chartValues, color: (o = 1) => `rgba(53,99,133,${Math.max(o,0.8)})`, strokeWidth: 2 }],
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     zIndex: 40, backdropFilter: 'blur(16px)' as any,
     shadowColor: Colors.textDark, shadowOpacity: 0.05, shadowRadius: 32,
     shadowOffset: { width: 0, height: 10 }, elevation: 2,
-  },
+  } as any,
   headerLeftFlex: { flexDirection: 'row', alignItems: 'center', gap: 24, flex: 1 },
   headerTitle: { fontSize: 20, fontWeight: '700', color: Colors.textDark, letterSpacing: -0.5 },
   searchBox: {
@@ -486,8 +486,8 @@ const styles = StyleSheet.create({
   thCell: { fontSize: 11, fontWeight: '700', color: Colors.textMuted, letterSpacing: 1 },
   trBox: {
     flexDirection: 'row', paddingHorizontal: 24, paddingVertical: 14,
-    borderBottomWidth: 1, borderColor: Colors.border, transition: 'all 0.15s' as any,
-  },
+    borderBottomWidth: 1, borderColor: Colors.border, transition: 'all 0.15s',
+  } as any,
   tdBox: { justifyContent: 'center' },
   avatarCircle: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 13, fontWeight: '800' },
@@ -497,3 +497,5 @@ const styles = StyleSheet.create({
   roleTxt: { fontSize: 10, fontWeight: '700', textTransform: 'capitalize' },
   tdTxt: { fontSize: 13, fontWeight: '500', color: Colors.textMuted },
 });
+
+
