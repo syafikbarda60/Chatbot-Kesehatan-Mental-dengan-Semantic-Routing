@@ -61,6 +61,33 @@ Pertanyaan: {user_message}"""
 
     return response.content
 
+def stream_rag_response(user_message: str):
+    """Generator: yields text chunks from RAG+LLM stream."""
+    docs = retrieve_docs(user_message)
+
+    if not docs:
+        yield "Maaf, saya tidak menemukan informasi terkait di dokumen."
+        return
+
+    context = "\n---\n".join([d["content"] for d in docs])
+    prompt = f"""Gunakan konteks berikut untuk menjawab pertanyaan dalam Bahasa Indonesia.
+Jika tidak ada di konteks, katakan kamu tidak tahu.
+
+Konteks:
+{context}
+
+Pertanyaan: {user_message}"""
+
+    messages = chat_history + [HumanMessage(content=prompt)]
+    full = []
+    for chunk in llm.stream(messages):
+        token = chunk.content
+        if token:
+            full.append(token)
+            yield token
+    chat_history.append(HumanMessage(content=prompt))
+    chat_history.append(AIMessage(content="".join(full)))
+
 if __name__ == "__main__":
     tests = [
         "apa itu depresi?",

@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated } from 'react-native';
 import { analyzeStress, QUICK_REPLIES } from '@prototype/utils';
-import { apiChat } from '@prototype/api-client';
+import { apiChatStream } from '@prototype/api-client';
 import type { Message } from '../components/chat/ChatBubble';
 
 export interface UseChatReturn {
@@ -50,8 +50,9 @@ export function useChat(): UseChatReturn {
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [isHighRisk, setIsHighRisk]     = useState(false);
 
-  const sessionId   = useRef(generateSessionId()).current;
-  const sendBtnScale = useRef(new Animated.Value(1)).current;
+  const sessionId      = useRef(generateSessionId()).current;
+  const sendBtnScale   = useRef(new Animated.Value(1)).current;
+  const abortStreamRef = useRef<(() => void) | null>(null);
 
   // ── Add AI message ─────────────────────────────────────────────
   const addAI = useCallback((text: string) => {
@@ -66,6 +67,11 @@ export function useChat(): UseChatReturn {
     const t = setTimeout(() => addAI(pickGreeting()), 600);
     return () => clearTimeout(t);
   }, [addAI]);
+
+  // ── Abort stream on unmount ────────────────────────────────────
+  useEffect(() => {
+    return () => { abortStreamRef.current?.(); };
+  }, []);
 
   // ── Re-analyze stress whenever messages change ─────────────────
   useEffect(() => {
@@ -88,10 +94,14 @@ export function useChat(): UseChatReturn {
     }
   }, [stressLevel, messages.length]);
 
-  // ── Send message → backend ────────────────────────────────────
+
+  // ── Send message → SSE stream ─────────────────────────────────
   const sendMessage = useCallback(
     (text: string) => {
       if (!text.trim()) return;
+
+      // Abort any existing stream
+      abortStreamRef.current?.();
 
       const userMsg: Message = {
         id: `user-${Date.now()}`,
@@ -100,7 +110,16 @@ export function useChat(): UseChatReturn {
         timestamp: new Date(),
       };
 
-      setMessages((prev) => [...prev, userMsg]);
+      // Create empty AI placeholder that we'll fill token-by-token
+      const aiMsgId = `ai-${Date.now()}`;
+      const aiPlaceholder: Message = {
+        id: aiMsgId,
+        text: '',
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, userMsg, aiPlaceholder]);
       setInputText('');
       setIsTyping(true);
       setShowQuickReplies(false);
@@ -111,26 +130,46 @@ export function useChat(): UseChatReturn {
         Animated.spring(sendBtnScale, { toValue: 1, useNativeDriver: true }),
       ]).start();
 
-      // Hit backend /chat
-      apiChat({ message: text.trim(), session_id: sessionId })
-        .then((res) => {
-          addAI(res.response);
-          if (res.is_high_risk) {
+      // Start SSE stream
+      const abort = apiChatStream(
+        { message: text.trim(), session_id: sessionId },
+        // onToken: append token to AI message in-place
+        (token) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiMsgId ? { ...m, text: m.text + token } : m
+            )
+          );
+        },
+        // onDone: receive metadata from stream
+        (meta) => {
+          setIsTyping(false);
+          setShowQuickReplies(true);
+          abortStreamRef.current = null;
+          if (meta.is_high_risk) {
             setIsHighRisk(true);
             setShowAlert(true);
             setAlertTriggered(true);
           }
-        })
-        .catch(() => {
-          // Fallback jika backend tidak jalan
-          addAI('Maaf, aku sedang tidak bisa dihubungi. Coba lagi sebentar ya 🙏');
-        })
-        .finally(() => {
+        },
+        // onError: fallback message
+        () => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiMsgId
+                ? { ...m, text: 'Maaf, aku sedang tidak bisa dihubungi. Coba lagi sebentar ya 🙏' }
+                : m
+            )
+          );
           setIsTyping(false);
           setShowQuickReplies(true);
-        });
+          abortStreamRef.current = null;
+        },
+      );
+
+      abortStreamRef.current = abort;
     },
-    [addAI, sendBtnScale, sessionId]
+    [sendBtnScale, sessionId]
   );
 
   // ── Report confirmed ──────────────────────────────────────────

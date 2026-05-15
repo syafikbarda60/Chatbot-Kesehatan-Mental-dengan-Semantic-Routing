@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="id">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#555f78",
+                        "secondary-container": "#d2e6ed",
+                        "inverse-primary": "#cae3fb",
+                        "outline": "#737c7f",
+                        "on-background": "#2b3437",
+                        "on-tertiary-fixed": "#333d55",
+                        "background": "#f8f9fa",
+                        "on-error-container": "#752121",
+                        "surface-container": "#eaeff1",
+                        "on-primary": "#f3f8ff",
+                        "on-surface": "#2b3437",
+                        "on-surface-variant": "#586064",
+                        "on-error": "#fff7f6",
+                        "on-tertiary-fixed-variant": "#505972",
+                        "secondary-dim": "#44565c",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#abb3b7",
+                        "on-secondary-container": "#43555b",
+                        "error-container": "#fe8983",
+                        "secondary-fixed": "#d2e6ed",
+                        "on-tertiary-container": "#465068",
+                        "tertiary-container": "#d5dffd",
+                        "tertiary-fixed": "#d5dffd",
+                        "surface-container-low": "#f1f4f6",
+                        "surface-bright": "#f8f9fa",
+                        "surface": "#f8f9fa",
+                        "surface-dim": "#d1dce0",
+                        "tertiary-fixed-dim": "#c7d1ef",
+                        "primary-container": "#cce5fd",
+                        "primary-dim": "#3d5569",
+                        "primary-fixed-dim": "#bed7ef",
+                        "on-secondary": "#f0fbff",
+                        "inverse-surface": "#0c0f10",
+                        "on-tertiary": "#f9f8ff",
+                        "secondary": "#506268",
+                        "secondary-fixed-dim": "#c4d8df",
+                        "on-primary-fixed-variant": "#465e72",
+                        "primary-fixed": "#cce5fd",
+                        "on-primary-fixed": "#2a4255",
+                        "surface-container-high": "#e3e9ec",
+                        "surface-tint": "#496175",
+                        "on-secondary-fixed-variant": "#4c5e65",
+                        "on-primary-container": "#3c5468",
+                        "error": "#9f403d",
+                        "inverse-on-surface": "#9b9d9e",
+                        "surface-variant": "#dbe4e7",
+                        "primary": "#496175",
+                        "error-dim": "#4e0309",
+                        "tertiary-dim": "#49536b",
+                        "on-secondary-fixed": "#304248",
+                        "surface-container-highest": "#dbe4e7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .editorial-shadow {
+            box-shadow: 0 12px 40px rgba(43, 52, 55, 0.06);
+        }
+
+        .primary-gradient {
+            background: linear-gradient(135deg, #496175 0%, #3d5569 100%);
+        }
+    </style>
+    <style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-surface min-h-screen pb-32">
+    <!-- Top Navigation Bar -->
+    <nav
+        class="fixed top-0 w-full z-50 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-sm dark:shadow-none">
+        <div class="flex justify-between items-center px-6 h-16 w-full">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden">
+                    <img alt="Minimalist portrait" class="w-full h-full object-cover"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_Na6552hIuYua8yZpz2RMDPYDUPWcg-L-StOyEFsWJFyES3p7g-l5kZUHOD7qBp6vs00k_YQerfSZNh013QEPMrOxlOlG6znxNc9JT-ba0k1M5Q3MORiuHFX2ITDpZSyXOWZT74wS9bgEGdT2c854glBXw57Hnbq5Yo-xAgxF5RtQoRIC7a9ZnXg8e2UZCENSxLPGEm_0tbxEhgIbGzaVI4vlHUCtT3bHyl2zyp-1ffLVnCkYShXyWk2TbXtvlmkU930LI_icW0Rb" />
+                </div>
+                <span
+                    class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tighter font-headline">Sanctuary</span>
+            </div>
+            <button
+                class="text-slate-600 dark:text-slate-300 hover:opacity-80 transition-opacity active:scale-95 transition-transform">
+                <span class="material-symbols-outlined" data-icon="settings">settings</span>
+            </button>
+        </div>
+    </nav>
+    <main class="pt-24 px-6 max-w-6xl mx-auto space-y-12">
+        <!-- Header Greeting Section -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div class="space-y-2">
+                <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface">Selamat pagi, Elias</h1>
+                <p class="text-on-surface-variant font-medium text-lg">Bagaimana perasaanmu saat ini?</p>
+            </div>
+            <div class="flex gap-4">
+                <div
+                    class="px-6 py-3 rounded-xl bg-surface-container-low text-primary font-semibold text-sm tracking-wide">
+                    12 April, 2024
+                </div>
+            </div>
+        </header>
+        <!-- Bento Grid Content -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <!-- Left Column Content -->
+            <section class="md:col-span-8 space-y-6">
+                <!-- Spirit Section -->
+                <div
+                    class="bg-surface-container-lowest rounded-xl p-8 shadow-[0_12px_40px_rgba(43,52,55,0.06)] relative overflow-hidden">
+                    <div class="relative z-10">
+                        <h2 class="text-sm font-bold uppercase tracking-widest text-outline mb-8">Spirit</h2>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                            <!-- Calm -->
+                            <button
+                                class="group flex flex-col items-center gap-4 p-6 rounded-xl hover:bg-surface-container-low transition-all duration-300 active:scale-95">
+                                <div
+                                    class="w-16 h-16 rounded-full bg-secondary-container/30 flex items-center justify-center text-primary">
+                                    <span class="material-symbols-outlined text-3xl" data-icon="waves">waves</span>
+                                </div>
+                                <span class="text-sm font-semibold tracking-tight">Calm</span>
+                            </button>
+                            <!-- Anxious -->
+                            <button
+                                class="group flex flex-col items-center gap-4 p-6 rounded-xl hover:bg-surface-container-low transition-all duration-300 active:scale-95">
+                                <div
+                                    class="w-16 h-16 rounded-full bg-error-container/20 flex items-center justify-center text-error">
+                                    <span class="material-symbols-outlined text-3xl" data-icon="airwave">airwave</span>
+                                </div>
+                                <span class="text-sm font-semibold tracking-tight">Anxious</span>
+                            </button>
+                            <!-- Focused -->
+                            <button
+                                class="group flex flex-col items-center gap-4 p-6 rounded-xl hover:bg-surface-container-low transition-all duration-300 active:scale-95">
+                                <div
+                                    class="w-16 h-16 rounded-full bg-tertiary-container/30 flex items-center justify-center text-tertiary">
+                                    <span class="material-symbols-outlined text-3xl" data-icon="target">target</span>
+                                </div>
+                                <span class="text-sm font-semibold tracking-tight">Focused</span>
+                            </button>
+                            <!-- Tired -->
+                            <button
+                                class="group flex flex-col items-center gap-4 p-6 rounded-xl hover:bg-surface-container-low transition-all duration-300 active:scale-95">
+                                <div
+                                    class="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+                                    <span class="material-symbols-outlined text-3xl" data-icon="moon">moon_stars</span>
+                                </div>
+                                <span class="text-sm font-semibold tracking-tight">Tired</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- NEW: Self-Journaling Section -->
+                <div
+                    class="bg-surface-container-lowest rounded-xl p-8 shadow-[0_12px_40px_rgba(43,52,55,0.06)] border border-surface-container-low">
+                    <div class="flex justify-between items-start mb-8">
+                        <div class="space-y-2">
+                            <h2 class="text-sm font-bold uppercase tracking-widest text-outline">Self-Journaling</h2>
+                            <p class="text-on-surface-variant text-sm font-medium">Jernihkan pikiranmu melalui tulisan
+                                hari ini.</p>
+                        </div>
+                        <span class="material-symbols-outlined text-outline/40" data-icon="edit_note">edit_note</span>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="relative">
+                            <textarea
+                                class="w-full h-32 p-4 rounded-xl bg-surface-container-low border-none focus:ring-2 focus:ring-primary/20 text-on-surface placeholder:text-outline-variant font-medium text-sm transition-all resize-none"
+                                placeholder="Apa yang sedang kamu pikirkan?"></textarea>
+                            <div class="absolute bottom-4 right-4 flex items-center gap-2">
+                                <span class="text-[10px] text-outline font-bold uppercase tracking-widest">Auto-save
+                                    aktif</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-primary">
+                                    <span class="material-symbols-outlined text-xl"
+                                        data-icon="auto_awesome">auto_awesome</span>
+                                </div>
+                                <p class="text-xs text-on-surface-variant leading-relaxed max-w-[200px]">
+                                    Menulis teratur dapat menurunkan tingkat stres hingga 30%.
+                                </p>
+                            </div>
+                            <button
+                                class="w-full sm:w-auto px-10 py-3.5 bg-primary text-on-primary rounded-full font-bold text-sm hover:opacity-95 transition-opacity active:scale-95 shadow-lg shadow-primary/10">
+                                Simpan Jurnal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- Dialogue Card -->
+                <div
+                    class="primary-gradient rounded-xl p-8 text-on-primary shadow-xl flex flex-col md:flex-row items-center justify-between gap-8 group">
+                    <div class="space-y-4 max-w-md">
+                        <h3 class="text-3xl font-bold tracking-tight">Butuh teman bicara?</h3>
+                        <p class="text-primary-container/80 font-medium">Asisten cerdas Sanctuary selalu siap
+                            mendengarkan cerita dan tantangan belajarmu hari ini.</p>
+                        <button
+                            class="bg-surface-container-lowest text-primary px-8 py-3 rounded-full font-bold text-sm hover:opacity-90 transition-opacity active:scale-95">
+                            Mulai Percakapan
+                        </button>
+                    </div>
+                    <div
+                        class="w-32 h-32 md:w-48 md:h-48 rounded-full bg-white/10 backdrop-blur-3xl flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                        <span class="material-symbols-outlined text-6xl"
+                            data-icon="chat_bubble_outline">chat_bubble_outline</span>
+                    </div>
+                </div>
+            </section>
+            <!-- Sidebar Content - Right Column -->
+            <aside class="md:col-span-4 space-y-6">
+                <!-- Daily Quote Card -->
+                <div class="bg-surface-container-low rounded-xl p-8 relative overflow-hidden">
+                    <span class="material-symbols-outlined text-primary/10 text-8xl absolute -top-4 -right-4 rotate-12"
+                        data-icon="format_quote">format_quote</span>
+                    <h2 class="text-xs font-bold uppercase tracking-widest text-outline mb-6 relative z-10">Kutipan Hari
+                        Ini</h2>
+                    <blockquote class="relative z-10">
+                        <p class="text-xl font-medium leading-relaxed text-on-surface">"Tidak apa-apa untuk
+                            beristirahat. Bunga pun butuh waktu untuk mekar kembali di musim yang tepat."</p>
+                        <footer class="mt-6 text-sm font-bold text-primary">— Sanctuary Journal</footer>
+                    </blockquote>
+                </div>
+                <!-- Progress Self-Assessment -->
+                <div class="bg-surface-container-lowest rounded-xl p-8 shadow-[0_12px_40px_rgba(43,52,55,0.06)]">
+                    <h2 class="text-sm font-bold uppercase tracking-widest text-outline mb-8">Progress Pekanan</h2>
+                    <div class="space-y-8">
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-sm font-bold text-on-surface">Ketenangan</span>
+                                <span class="text-sm font-bold text-primary">82%</span>
+                            </div>
+                            <div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+                                <div class="h-full bg-primary w-[82%] rounded-full"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-sm font-bold text-on-surface">Fokus Belajar</span>
+                                <span class="text-sm font-bold text-primary">64%</span>
+                            </div>
+                            <div class="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+                                <div class="h-full bg-primary w-[64%] rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="pt-4">
+                            <button
+                                class="w-full py-4 rounded-xl border border-outline-variant/30 text-on-surface-variant font-bold text-sm hover:bg-surface-container-low transition-colors">
+                                Lihat Laporan Detail
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+        <!-- Secondary Insights Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-12">
+            <div class="rounded-xl overflow-hidden h-64 relative group">
+                <img alt="Meditasi"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWNzwLg-ozVPjc3_uhq8yF9pHD04WWdrzZcu7DIvLSCV2UMNthqRIaRmELtwxtxEnwOOy-IjI74ZKCNjiivKH8K6izDw5i3LHMK_W8WodvNGqtLUCqPep1P3LK7pP_iY0y3VU4oZkpGHImDenGnrcCFfkDL-7Qe8smWMVSba7dAx3zvzP3-KtgfAt2lr3TNZhDG6gNuBMj0wGM2TMxbGV2AtflP6jJmrTIBn9s3h8hswSuQMwnh9ymdfhb-_6nze9fp1HoiwgU5wft" />
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-on-surface/60 to-transparent p-8 flex flex-col justify-end">
+                    <h4 class="text-white text-xl font-bold">Meditasi 5 Menit</h4>
+                    <p class="text-white/80 text-sm">Temukan ketenangan di sela jadwal kuliah.</p>
+                </div>
+            </div>
+            <div class="rounded-xl overflow-hidden h-64 relative group">
+                <img alt="Tips Stress"
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIqN8u_jNcGAXWLN-wgceAUlQekfepAQhtxgnUPIjlEqMRLwtFf0aAg3l1XdBZ_1ctwJC5UQp5cm1hyiWB3_ASb4Mi7D2jCDBShvEyEJYLHhrDq6Y7NtmxUluZ5NH-iRRljW1eTVW5beXkWbTTGpeoOpyY_qixDYeH0REXISrnyOK9rz31hVnFx5uH7BN1Vy0HgKFwk_uNHf7jLO4yjFH3UYq2A3Hnrim8GOScpZ42PUJF3curNRnW9qe9OggiH1fTLt7g9QEbW5Bv" />
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-on-surface/60 to-transparent p-8 flex flex-col justify-end">
+                    <h4 class="text-white text-xl font-bold">Tips Manajemen Stress</h4>
+                    <p class="text-white/80 text-sm">Strategi menghadapi pekan ujian dengan tenang.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    <!-- Navigation Shell -->
+    <nav
+        class="fixed bottom-0 w-full z-50 pb-safe bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl shadow-[0_-4px_40px_rgba(43,52,55,0.06)]">
+        <div class="flex justify-around items-center h-20 px-8 w-full">
+            <!-- Active Home Tab -->
+            <a class="flex flex-col items-center justify-center text-cyan-800 dark:text-cyan-300 scale-110 transition-all duration-300 tap-highlight-none"
+                href="#">
+                <span class="material-symbols-outlined" data-icon="home"
+                    style="font-variation-settings: 'FILL' 1;">home</span>
+                <span class="font-plus-jakarta text-[10px] font-medium mt-1">Home</span>
+            </a>
+            <!-- Chat Tab -->
+            <a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:text-cyan-700 dark:hover:text-cyan-200 transition-colors active:scale-90 transition-all duration-300"
+                href="#">
+                <span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+                <span class="font-plus-jakarta text-[10px] font-medium mt-1">Dialogue</span>
+            </a>
+            <!-- Quiz Tab -->
+            <a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:text-cyan-700 dark:hover:text-cyan-200 transition-colors active:scale-90 transition-all duration-300"
+                href="#">
+                <span class="material-symbols-outlined" data-icon="quiz">quiz</span>
+                <span class="font-plus-jakarta text-[10px] font-medium mt-1">Quiz</span>
+            </a>
+            <!-- Profile Tab -->
+            <a class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 hover:text-cyan-700 dark:hover:text-cyan-200 transition-colors active:scale-90 transition-all duration-300"
+                href="#">
+                <span class="material-symbols-outlined" data-icon="person">person</span>
+                <span class="font-plus-jakarta text-[10px] font-medium mt-1">Profile</span>
+            </a>
+        </div>
+    </nav>
+</body>
+
+</html>

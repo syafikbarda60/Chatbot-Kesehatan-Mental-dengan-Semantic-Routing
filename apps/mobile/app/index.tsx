@@ -23,10 +23,16 @@ import { useAuth } from '@prototype/ui-shared';
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { login, isLoading, error } = useAuth();
+  const { login, isLoading: isAuthLoading, error, isLoggedIn, user } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    if (isLoggedIn && user && !isAuthLoading) {
+      router.replace('/(tabs)/home');
+    }
+  }, [isLoggedIn, user, isAuthLoading]);
 
   // Entrance animations
   const anim1 = useRef(new Animated.Value(0)).current;
@@ -37,6 +43,8 @@ export default function LoginScreen() {
   const y3 = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
+    if (isLoggedIn) return; // Skip animation if redirecting
+
     Animated.stagger(120, [
       Animated.parallel([
         Animated.timing(anim1, { toValue: 1, duration: 550, useNativeDriver: true }),

@@ -36,6 +36,19 @@ def get_conversational_response(user_message: str) -> str:
     chat_history.append(AIMessage(content=response.content))
     return response.content
 
+def stream_conversational_response(user_message: str):
+    """Generator: yields text chunks from LLM stream."""
+    messages = [HumanMessage(content=SYSTEM_PROMPT)] + chat_history + [HumanMessage(content=user_message)]
+    full = []
+    for chunk in llm.stream(messages):
+        token = chunk.content
+        if token:
+            full.append(token)
+            yield token
+    # Store full response in history after stream completes
+    chat_history.append(HumanMessage(content=user_message))
+    chat_history.append(AIMessage(content="".join(full)))
+
 # Test
 if __name__ == "__main__":
     tests = [

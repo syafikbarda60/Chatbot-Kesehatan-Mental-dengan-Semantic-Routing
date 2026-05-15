@@ -118,18 +118,71 @@ def retrieve_rag_context(request: ChatRequest, user=Depends(get_current_user)):
 @chat_router.post("/stream")
 def stream_chat_response(request: ChatRequest, user=Depends(get_current_user)):
     """
-    CB-07 — Kirim kueri ke model Llama-3.2-3B lokal dan kembalikan
-    respons teks secara bertahap (streaming SSE) kepada mahasiswa.
+    CB-07 — Stream respons AI per token via SSE.
+    Guardrail check → semantic route → stream dari LLM (conversational/RAG).
     """
-    chat_fn, _ = _get_chat_core()
+    from routes.guardrail import HARDCODED_RESPONSE
+    from routes.conversational import stream_conversational_response
+    from routes.rag import stream_rag_response
+
+    _, semantic_router = _get_chat_core()
+    route_result = semantic_router(request.message)
+    route = route_result.name or "conversational"
 
     def generate():
-        response = chat_fn(request.message)
-        for word in response.split(" "):
-            yield f"data: {json.dumps({'token': word + ' '})}\n\n"
-        yield "data: [DONE]\n\n"
+        # Guardrail: kirim satu shot, tidak perlu stream
+        if route == "guardrail":
+            yield f"data: {json.dumps({'token': HARDCODED_RESPONSE})}\n\n"
+            if request.session_id:
+                supabase.table("guardrail_logs").insert({
+                    "session_id": request.session_id,
+                    "user_id": str(user.id),
+                    "triggered_input": request.message,
+                }).execute()
+            yield f"data: {json.dumps({'done': True, 'is_high_risk': True, 'route': 'guardrail'})}\n\n"
+            return
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+        # Pick stream generator berdasarkan route
+        if route == "rag":
+            token_gen = stream_rag_response(request.message)
+        else:
+            token_gen = stream_conversational_response(request.message)
+
+        full_response = []
+        for token in token_gen:
+            full_response.append(token)
+            yield f"data: {json.dumps({'token': token})}\n\n"
+
+        # Save history setelah stream selesai
+        if request.session_id:
+            complete_text = "".join(full_response)
+            supabase.table("messages").insert([
+                {
+                    "session_id": request.session_id,
+                    "user_id": str(user.id),
+                    "role": "user",
+                    "content": _encrypt(request.message),
+                    "route_used": route,
+                },
+                {
+                    "session_id": request.session_id,
+                    "user_id": str(user.id),
+                    "role": "assistant",
+                    "content": _encrypt(complete_text),
+                    "route_used": route,
+                },
+            ]).execute()
+
+        yield f"data: {json.dumps({'done': True, 'is_high_risk': False, 'route': route})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # nginx: disable buffering
+        },
+    )
 
 
 # ── CB-08: saveChatHistory ───────────────────────────────────────────────────

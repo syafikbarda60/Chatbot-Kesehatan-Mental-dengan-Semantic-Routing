@@ -132,6 +132,78 @@ export async function apiChat(payload: ChatPayload): Promise<ChatResponse> {
   });
 }
 
+/**
+ * SSE streaming chat. Calls `onToken` for each text chunk, `onDone` when complete.
+ * Returns a cleanup fn to abort the stream.
+ */
+export function apiChatStream(
+  payload: ChatPayload,
+  onToken: (token: string) => void,
+  onDone: (meta: { is_high_risk: boolean; route: string }) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const token = await getToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE_URL}/chat/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response body');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.done) {
+              // Final metadata event
+              onDone({ is_high_risk: parsed.is_high_risk ?? false, route: parsed.route ?? '' });
+              return;
+            }
+            if (parsed.token) onToken(parsed.token);
+          } catch {
+            // skip malformed SSE line
+          }
+        }
+      }
+      onDone({ is_high_risk: false, route: '' });
+    } catch (err: unknown) {
+      if ((err as Error).name === 'AbortError') return;
+      onError?.(err instanceof Error ? err : new Error(String(err)));
+      onDone({ is_high_risk: false, route: '' });
+    }
+  })();
+
+  return () => controller.abort();
+}
+
 // ── Assessment ─────────────────────────────────────────────────────────────────
 
 export interface AnswerItem {
@@ -220,6 +292,6 @@ export async function apiGetTodayJournal() {
   return apiFetch<{ journal: { content: string; mood: string } | null }>('/journal/today');
 }
 
-export async function apiGetJournals() {
-  return apiFetch<{ journals: any[] }>('/journal');
+export async function apiGetJournals(limit: number = 20, offset: number = 0) {
+  return apiFetch<{ journals: any[] }>(`/journal?limit=${limit}&offset=${offset}`);
 }

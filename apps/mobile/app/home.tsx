@@ -7,15 +7,20 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  TextInput,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { BottomNav, FadeIn } from '../components/ui';
 import { useTheme } from '@prototype/ui-shared';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
+import { apiSaveJournal } from '@prototype/api-client';
+
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +39,22 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
+  const [journalText, setJournalText] = useState('');
+  const [isSavingJournal, setIsSavingJournal] = useState(false);
+
+  const handleSaveJournal = async () => {
+    if (!journalText.trim()) return;
+    setIsSavingJournal(true);
+    try {
+      await apiSaveJournal({ content: journalText });
+      Alert.alert('Tersimpan', 'Jurnal kamu berhasil disimpan.');
+      setJournalText('');
+    } catch (err: any) {
+      Alert.alert('Gagal', err.message || 'Gagal menyimpan jurnal.');
+    } finally {
+      setIsSavingJournal(false);
+    }
+  };
 
   const calmW  = useRef(new Animated.Value(0)).current;
   const focusW = useRef(new Animated.Value(0)).current;
@@ -143,19 +164,69 @@ export default function HomeScreen() {
           </View>
         </FadeIn>
 
-        {/* ── Inspirational Section ── */}
+        {/* ── Self-Journaling Section ── */}
+        {/* ── Self-Journaling Section ── */}
         <FadeIn delay={240}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>ENERGY & AFFIRMATION</Text>
-            <Text style={[s.inspirationalText, { color: colors.onSurface }]}>
-              Energi positif dimulai dari dalam. Fokuskan pikiran pada hal yang dapat kamu kontrol, biarkan sisanya mengalir.
-            </Text>
-            <TouchableOpacity
-              style={[s.journalBtn, { backgroundColor: colors.primary, marginTop: 16 }]}
-              onPress={() => router.push('/journal')}
-            >
-              <Text style={s.journalBtnText}>Simak Jurnal</Text>
-            </TouchableOpacity>
+          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest, padding: 0, overflow: 'hidden' }]}>
+            <View style={{ padding: 24 }}>
+              <TouchableOpacity 
+                activeOpacity={0.7} 
+                onPress={() => router.push('/journal')}
+                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}
+              >
+                <View style={{ flex: 1, paddingRight: 16 }}>
+                  <Text style={[s.sectionEyebrow, { color: colors.outline, marginBottom: 4 }]}>SELF-JOURNALING</Text>
+                  <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', color: colors.onSurfaceVariant, lineHeight: 20 }}>
+                    Jernihkan pikiranmu melalui tulisan hari ini.
+                  </Text>
+                </View>
+                <MaterialIcons name="edit-note" size={28} color={colors.outline + '80'} />
+              </TouchableOpacity>
+
+              <View style={{ position: 'relative', marginBottom: 24 }}>
+                <TextInput
+                  style={[
+                    s.journalInput,
+                    {
+                      backgroundColor: colors.surfaceContainerLow,
+                      color: colors.onSurface,
+                    }
+                  ]}
+                  placeholderTextColor={colors.outlineVariant}
+                  placeholder="Apa yang sedang kamu pikirkan?"
+                  multiline
+                  textAlignVertical="top"
+                  value={journalText}
+                  onChangeText={setJournalText}
+                />
+                <View style={{ position: 'absolute', bottom: 12, right: 16 }}>
+                  <Text style={{ fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold', color: colors.outline, letterSpacing: 1, textTransform: 'uppercase' }}>
+                    Auto-save aktif
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
+                <View style={[s.journalTipIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
+                </View>
+                <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium', color: colors.onSurfaceVariant, flex: 1, marginLeft: 12, lineHeight: 16 }}>
+                  Menulis teratur dapat menurunkan tingkat stres hingga 30%.
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={[s.journalBtn, { backgroundColor: colors.primary, opacity: journalText.trim() ? 1 : 0.5, width: '100%' }]}
+                onPress={handleSaveJournal}
+                disabled={!journalText.trim() || isSavingJournal}
+              >
+                {isSavingJournal ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={s.journalBtnText}>Simpan Jurnal</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </FadeIn>
 
@@ -434,8 +505,22 @@ const s = StyleSheet.create({
   },
   reportBtnText: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  // Journal Button (reused)
-  journalBtn: { paddingVertical: 12, borderRadius: 14, alignItems: 'center' },
+  // Journal Button & Input
+  journalBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   journalBtnText: { color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
+  journalInput: {
+    height: 100,
+    borderRadius: 16,
+    padding: 16,
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
+  journalTipIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 

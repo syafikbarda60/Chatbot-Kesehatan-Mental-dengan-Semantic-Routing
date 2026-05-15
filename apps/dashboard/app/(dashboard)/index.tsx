@@ -4,7 +4,6 @@ import {
   Animated, Pressable, ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import { router } from 'expo-router';
 import {
   apiGetDashboard, apiGetAccounts, clearAuthSync,
@@ -60,6 +59,115 @@ const GlacialAnim = ({ children, delay = 0, style }: { children: React.ReactNode
   return <Animated.View style={[{ opacity: fade, transform: [{ translateY: slide }] }, style]}>{children}</Animated.View>;
 };
 
+// ── Web-native SVG Chart with hover tooltip ──────────────────────────────────
+const WebChart = ({ labels, values, width, height }: { labels: string[], values: number[], width: number, height: number }) => {
+  const containerRef = useRef<any>(null);
+
+  const pad = { top: 20, right: 20, bottom: 30, left: 40 };
+  const cw = width - pad.left - pad.right;
+  const ch = height - pad.top - pad.bottom;
+  const maxVal = Math.max(...values, 1);
+  const yTicks = 4;
+
+  const points = values.map((v, i) => ({
+    x: pad.left + (i / Math.max(values.length - 1, 1)) * cw,
+    y: pad.top + ch - (v / maxVal) * ch,
+    v, label: labels[i] || '',
+  }));
+
+  const pathD = points.map((p, i) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = points[i - 1];
+    const cx1 = prev.x + (p.x - prev.x) * 0.4;
+    const cx2 = p.x - (p.x - prev.x) * 0.4;
+    return `C ${cx1} ${prev.y}, ${cx2} ${p.y}, ${p.x} ${p.y}`;
+  }).join(' ');
+
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${pad.top + ch} L ${points[0].x} ${pad.top + ch} Z`;
+  const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => Math.round((maxVal / yTicks) * i));
+
+  // Build SVG + tooltip container HTML (NO script tags, NO inline event handlers)
+  const htmlContent = `
+    <div style="position:relative;width:${width}px;height:${height}px;font-family:Inter,system-ui,sans-serif;" data-chart="root">
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <defs>
+          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${Colors.primary}" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="${Colors.primary}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${yLabels.map((v) => {
+          const y = pad.top + ch - (v / maxVal) * ch;
+          return `<text x="${pad.left - 8}" y="${y + 4}" text-anchor="end" fill="${Colors.textMuted}" font-size="11">${v}</text>
+                  <line x1="${pad.left}" y1="${y}" x2="${pad.left + cw}" y2="${y}" stroke="${Colors.border}" stroke-width="0.5" stroke-dasharray="4,4"/>`;
+        }).join('')}
+        ${points.map((p) => `<text x="${p.x}" y="${height - 6}" text-anchor="middle" fill="${Colors.textMuted}" font-size="11">${p.label}</text>`).join('')}
+        <path d="${areaD}" fill="url(#areaGrad)"/>
+        <path d="${pathD}" fill="none" stroke="${Colors.primary}" stroke-width="2.5" stroke-linecap="round"/>
+        ${points.map((p, i) => `
+          <circle cx="${p.x}" cy="${p.y}" r="5" fill="white" stroke="${Colors.primary}" stroke-width="2" data-dot="${i}"/>
+          <circle cx="${p.x}" cy="${p.y}" r="20" fill="transparent" data-hit="${i}" style="cursor:pointer"/>
+        `).join('')}
+      </svg>
+      <div data-tip="1" style="display:none;position:absolute;background:${Colors.primary};color:#fff;padding:6px 14px;border-radius:8px;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.18);text-align:center;z-index:99;min-width:70px;">
+        <div data-tipval="1" style="font-size:14px;font-weight:700;"></div>
+        <div data-tiplbl="1" style="font-size:11px;opacity:0.7;"></div>
+        <div style="position:absolute;bottom:-6px;left:50%;margin-left:-6px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid ${Colors.primary};"></div>
+      </div>
+    </div>
+  `;
+
+  // Attach event listeners via useEffect after DOM mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !containerRef.current) return;
+    const el = containerRef.current as unknown as HTMLElement;
+    const root = el.querySelector('[data-chart="root"]') as HTMLElement;
+    if (!root) return;
+
+    const tip = root.querySelector('[data-tip]') as HTMLElement;
+    const tipVal = root.querySelector('[data-tipval]') as HTMLElement;
+    const tipLbl = root.querySelector('[data-tiplbl]') as HTMLElement;
+    const dots = root.querySelectorAll('[data-dot]');
+    const hits = root.querySelectorAll('[data-hit]');
+
+    hits.forEach((hit) => {
+      const idx = parseInt(hit.getAttribute('data-hit') || '0');
+      const pt = points[idx];
+      if (!pt) return;
+
+      hit.addEventListener('mouseenter', () => {
+        tip.style.display = 'block';
+        tip.style.left = (pt.x - 40) + 'px';
+        tip.style.top = (pt.y - 55) + 'px';
+        tipVal.textContent = pt.v + ' asesmen';
+        tipLbl.textContent = pt.label;
+        dots.forEach(d => {
+          d.setAttribute('r', d.getAttribute('data-dot') === String(idx) ? '7' : '5');
+        });
+      });
+
+      hit.addEventListener('mouseleave', () => {
+        tip.style.display = 'none';
+        dots.forEach(d => d.setAttribute('r', '5'));
+      });
+    });
+  }, [width, height, values.join(',')]);
+
+  if (typeof window !== 'undefined') {
+    return (
+      <View ref={containerRef} style={{ width, height }}>
+        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width, height, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ color: Colors.textMuted }}>Chart tersedia di web</Text>
+    </View>
+  );
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function DashboardScreen() {
   const [chartW, setChartW]       = useState(0);
@@ -73,10 +181,6 @@ export default function DashboardScreen() {
   const adminUser = getStoredUserSync<{ nama: string; email: string; role: string }>();
 
   useEffect(() => {
-    // Guard: redirect ke login kalau tidak ada token
-    const token = typeof window !== 'undefined' ? localStorage.getItem('sanctuary_token') : null;
-    if (!token) { router.replace('/'); return; }
-
     fetchDashboard();
     fetchUsers();
   }, []);
@@ -123,10 +227,6 @@ export default function DashboardScreen() {
     ? trend.map((t: any) => t.date.slice(5))   // MM-DD
     : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
   const chartValues = trend.length ? trend.map((t: any) => t.count) : [0, 0, 0, 0, 0, 0, 0];
-  const lineChartData = {
-    labels: chartLabels,
-    datasets: [{ data: chartValues, color: (o = 1) => `rgba(53,99,133,${Math.max(o,0.8)})`, strokeWidth: 2 }],
-  };
 
   // Metric values
   const totalUsers      = users.length;
@@ -234,28 +334,13 @@ export default function DashboardScreen() {
                   <Text style={styles.chartSubtitle}>Jumlah asesmen per hari (7 hari terakhir)</Text>
                 </View>
               </View>
-              <View style={styles.chartBgBox} onLayout={(e) => { if (e.nativeEvent.layout.width > 100) setChartW(e.nativeEvent.layout.width); }}>
+              <View
+                style={styles.chartBgBox}
+                onLayout={(e) => { if (e.nativeEvent.layout.width > 100) setChartW(e.nativeEvent.layout.width); }}
+              >
                 {loadingDB
                   ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 80 }} />
-                  : chartW > 0 && (
-                    <LineChart
-                      data={lineChartData}
-                      width={chartW} height={220}
-                      yAxisLabel="" yAxisSuffix=""
-                      withInnerLines={false} withOuterLines={false}
-                      chartConfig={{
-                        backgroundColor: Colors.bgCard,
-                        backgroundGradientFrom: Colors.bgCard,
-                        backgroundGradientTo: Colors.bgCard,
-                        decimalPlaces: 0,
-                        color: (o = 1) => `rgba(172,179,186,0.3)`,
-                        labelColor: (o = 1) => `rgba(89,96,103,0.5)`,
-                        useShadowColorFromDataset: true,
-                      }}
-                      bezier
-                      style={{ marginLeft: -20, paddingRight: 40 }}
-                    />
-                  )
+                  : chartW > 0 && <WebChart labels={chartLabels} values={chartValues} width={chartW} height={240} />
                 }
               </View>
             </View>
@@ -469,7 +554,7 @@ const styles = StyleSheet.create({
   chartHeaderBlock: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 },
   chartTitle: { fontSize: 18, fontWeight: '700', color: Colors.textDark, letterSpacing: -0.5 },
   chartSubtitle: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
-  chartBgBox: { height: 256 },
+  chartBgBox: { minHeight: 240, overflow: 'visible' },
 
   tableCardContainer: {
     backgroundColor: Colors.bgCard, borderRadius: 16, overflow: 'hidden',
