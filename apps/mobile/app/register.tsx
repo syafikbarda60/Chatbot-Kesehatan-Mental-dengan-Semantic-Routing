@@ -104,7 +104,10 @@ export default function RegisterScreen() {
         <View style={s.topBar}>
           <TouchableOpacity
             style={[s.backBtn, { backgroundColor: colors.surfaceContainerLow }]}
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/');
+            }}
           >
             <Ionicons name="arrow-back" size={18} color={colors.onSurface} />
           </TouchableOpacity>

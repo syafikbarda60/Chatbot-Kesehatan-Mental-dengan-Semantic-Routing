@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, 
   FlatList 
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@prototype/ui-shared';
@@ -19,9 +19,11 @@ export default function JournalHistoryScreen() {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  useEffect(() => {
-    fetchJournals();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchJournals();
+    }, [])
+  );
 
   const fetchJournals = async (loadMore = false) => {
     if (isFetchingMore || (!hasMore && loadMore)) return;
@@ -83,6 +85,7 @@ export default function JournalHistoryScreen() {
           router.push({
             pathname: '/journal-detail',
             params: {
+              journal_id: item.journal_id,
               content: item.content,
               mood: item.mood,
               created_at: item.created_at
@@ -189,8 +192,9 @@ const s = StyleSheet.create({
   },
   moodText: { fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold' },
   contentText: {
-    fontSize: 14,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    lineHeight: 22,
+    fontSize: 15,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    lineHeight: 24,
+    marginTop: 4,
   },
 });

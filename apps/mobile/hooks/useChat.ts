@@ -26,9 +26,12 @@ export interface UseChatReturn {
   isHighRisk: boolean;
 }
 
-// Generate session ID per chat session
+// Generate session ID per chat session (UUIDv4 for PostgreSQL compatibility)
 function generateSessionId() {
-  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 // Greeting lokal — tidak perlu hit backend

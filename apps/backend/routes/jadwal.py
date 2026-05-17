@@ -138,6 +138,55 @@ def lihat_booking_masuk(user=Depends(require_role("konselor", "admin"))):
     return {"bookings": result.data or []}
 
 
+@router.get("/booking/admin")
+def lihat_semua_booking(user=Depends(require_role("admin", "pemangku_jabatan"))):
+    """Admin lihat semua booking dengan data user & jadwal."""
+    # Ambil semua booking
+    bookings_result = supabase.table("booking_konsultasi").select(
+        "booking_id, user_id, status, catatan, created_at, "
+        "jadwal_konsultasi(jadwal_id, tanggal, waktu_mulai, waktu_selesai, konselor_id)"
+    ).order("created_at", desc=True).execute()
+
+    bookings = bookings_result.data or []
+
+    if not bookings:
+        return {"bookings": []}
+
+    # Ambil semua user_id unik (mahasiswa + konselor)
+    user_ids = set()
+    for b in bookings:
+        user_ids.add(b["user_id"])
+        jadwal = b.get("jadwal_konsultasi") or {}
+        if jadwal.get("konselor_id"):
+            user_ids.add(jadwal["konselor_id"])
+
+    users_result = supabase.table("users").select(
+        "user_id, nama, email, nim"
+    ).in_("user_id", list(user_ids)).execute()
+
+    user_map = {u["user_id"]: u for u in (users_result.data or [])}
+
+    enriched = []
+    for b in bookings:
+        jadwal = b.get("jadwal_konsultasi") or {}
+        konselor_id = jadwal.get("konselor_id")
+        enriched.append({
+            "booking_id": b["booking_id"],
+            "status": b["status"],
+            "catatan": b.get("catatan"),
+            "created_at": b["created_at"],
+            "mahasiswa": user_map.get(b["user_id"], {"nama": "Unknown", "nim": "-"}),
+            "konselor": user_map.get(konselor_id, {"nama": "Tidak ada konselor"}) if konselor_id else {"nama": "-"},
+            "jadwal": {
+                "tanggal": jadwal.get("tanggal"),
+                "waktu_mulai": jadwal.get("waktu_mulai"),
+                "waktu_selesai": jadwal.get("waktu_selesai"),
+            } if jadwal else None,
+        })
+
+    return {"bookings": enriched}
+
+
 @router.patch("/booking/{booking_id}")
 def update_status_booking(
     booking_id: str,

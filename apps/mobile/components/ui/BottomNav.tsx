@@ -8,10 +8,11 @@ import { useTheme } from '@prototype/ui-shared';
 type Tab = { label: string; icon: string; iconActive: string; route: string };
 
 const TABS: Tab[] = [
-  { label: 'Home',     icon: 'home-outline',       iconActive: 'home',        route: '/home'    },
-  { label: 'Dialogue', icon: 'chatbubble-outline',  iconActive: 'chatbubble',  route: '/chat'    },
-  { label: 'Journaling', icon: 'book-outline', iconActive: 'book', route: '/journal-history' },
-  { label: 'Profile',  icon: 'person-outline',      iconActive: 'person',      route: '/profile' },
+  { label: 'Home',     icon: 'home-outline',       iconActive: 'home',        route: '/home'     },
+  { label: 'Dialogue', icon: 'chatbubble-outline',  iconActive: 'chatbubble',  route: '/chat'     },
+  { label: 'Jadwal',  icon: 'calendar-outline',    iconActive: 'calendar',    route: '/schedule' },
+  { label: 'Jurnal',  icon: 'book-outline',        iconActive: 'book',        route: '/journal-history' },
+  { label: 'Profil',  icon: 'person-outline',      iconActive: 'person',      route: '/profile'  },
 ];
 
 export default function BottomNav() {

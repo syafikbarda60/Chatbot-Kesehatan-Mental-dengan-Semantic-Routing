@@ -73,7 +73,10 @@ export default function ForgotPasswordScreen() {
       <View style={[s.blobBR, { backgroundColor: colors.tertiaryContainer + '35' }]} />
 
       <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+        <TouchableOpacity onPress={() => {
+          if (router.canGoBack()) router.back();
+          else router.replace('/');
+        }} style={s.backBtn}>
           <Ionicons name="arrow-back" size={24} color={colors.onSurface} />
         </TouchableOpacity>
       </View>

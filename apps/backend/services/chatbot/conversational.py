@@ -2,7 +2,13 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from semantic_router import Route
 
-llm = ChatOllama(model="llama3.2:3b")
+_llm = None
+
+def _get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatOllama(model="llama3.2:3b")
+    return _llm
 
 conversational_route = Route(
     name="conversational",
@@ -32,7 +38,7 @@ chat_history = []
 
 def get_conversational_response(user_message: str) -> str:
     chat_history.append(HumanMessage(content=user_message))
-    response = llm.invoke([HumanMessage(content=SYSTEM_PROMPT)] + chat_history)
+    response = _get_llm().invoke([HumanMessage(content=SYSTEM_PROMPT)] + chat_history)
     chat_history.append(AIMessage(content=response.content))
     return response.content
 
@@ -40,7 +46,7 @@ def stream_conversational_response(user_message: str):
     """Generator: yields text chunks from LLM stream."""
     messages = [HumanMessage(content=SYSTEM_PROMPT)] + chat_history + [HumanMessage(content=user_message)]
     full = []
-    for chunk in llm.stream(messages):
+    for chunk in _get_llm().stream(messages):
         token = chunk.content
         if token:
             full.append(token)

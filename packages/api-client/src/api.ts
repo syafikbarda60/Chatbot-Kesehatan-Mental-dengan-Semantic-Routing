@@ -1,8 +1,10 @@
 import { Platform } from 'react-native';
 import { getToken, saveToken, saveUser } from './storage';
 
+// Web dashboard runs on same PC as backend → localhost
+// Mobile (Expo Go on physical device) → LAN IP
 export const API_BASE_URL = __DEV__
-  ? (Platform.OS === 'android' ? 'http://10.0.2.2:8000' : 'http://localhost:8000')
+  ? (Platform.OS === 'web' ? 'http://localhost:8000' : 'http://10.131.247.150:8000')
   : 'https://your-production-url.com';
 
 interface FetchOptions extends RequestInit {
@@ -226,10 +228,6 @@ export async function apiSubmitAssessment(payload: AssessmentPayload) {
 
 // ── Jadwal / Booking ───────────────────────────────────────────────────────────
 
-export async function apiGetJadwal() {
-  return apiFetch<{ jadwal: object[] }>('/jadwal');
-}
-
 export async function apiBuatBooking(jadwal_id: string, catatan?: string) {
   return apiFetch('/booking', {
     method: 'POST',
@@ -295,3 +293,77 @@ export async function apiGetTodayJournal() {
 export async function apiGetJournals(limit: number = 20, offset: number = 0) {
   return apiFetch<{ journals: any[] }>(`/journal?limit=${limit}&offset=${offset}`);
 }
+
+export async function apiUpdateJournal(journal_id: string, payload: Partial<JournalPayload>) {
+  return apiFetch(`/journal/${journal_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function apiDeleteJournal(journal_id: string) {
+  return apiFetch(`/journal/${journal_id}`, {
+    method: 'DELETE',
+  });
+}
+
+// ── Jadwal Admin (typed) ──────────────────────────────────────────────────────
+
+// ── Jadwal & Booking ──────────────────────────────────────────────────────────
+
+export interface AdminBooking {
+  booking_id: string;
+  status: string;
+  catatan?: string;
+  created_at: string;
+  mahasiswa: { nama: string; nim?: string; email?: string };
+  konselor: { nama: string };
+  jadwal?: { tanggal: string; waktu_mulai: string; waktu_selesai: string } | null;
+}
+
+export async function apiGetAdminBookings(): Promise<{ bookings: AdminBooking[] }> {
+  return apiFetch('/booking/admin');
+}
+
+export async function apiUpdateBookingStatus(booking_id: string, status: 'menunggu' | 'dikonfirmasi' | 'selesai' | 'dibatalkan') {
+  return apiFetch(`/booking/${booking_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export interface JadwalSlot {
+  jadwal_id: string;
+  konselor_id: string;
+  tanggal: string;
+  waktu_mulai: string;
+  waktu_selesai: string;
+  status: string;
+}
+
+export async function apiGetJadwal(): Promise<{ jadwal: JadwalSlot[] }> {
+  return apiFetch('/jadwal');
+}
+
+export async function apiGetJadwalSaya(): Promise<{ jadwal: JadwalSlot[] }> {
+  return apiFetch('/jadwal/saya');
+}
+
+export async function apiBuatJadwal(payload: { tanggal: string; waktu_mulai: string; waktu_selesai: string }) {
+  return apiFetch('/jadwal', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function apiUpdateJadwalStatus(jadwal_id: string, status: 'tersedia' | 'dipesan' | 'selesai' | 'dibatalkan') {
+  return apiFetch(`/jadwal/${jadwal_id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function apiGetKonselor(): Promise<{ users: UserRow[] }> {
+  return apiFetch<{ users: UserRow[]; total: number }>('/accounts').then(r => ({
+    users: r.users.filter(u => u.role === 'konselor'),
+  }));
+}
+
+

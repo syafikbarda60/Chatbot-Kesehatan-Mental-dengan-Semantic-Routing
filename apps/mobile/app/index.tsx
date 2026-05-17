@@ -23,16 +23,21 @@ import { useAuth } from '@prototype/ui-shared';
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { login, isLoading: isAuthLoading, error, isLoggedIn, user } = useAuth();
+  const { login, logout, isLoading, error, isLoggedIn, user } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (isLoggedIn && user && !isAuthLoading) {
-      router.replace('/(tabs)/home');
+    if (isLoggedIn && user && !isLoading) {
+      if (user.role === 'mahasiswa') {
+        router.replace('/home');
+      } else {
+        // Force logout if non-mahasiswa somehow got in
+        logout();
+      }
     }
-  }, [isLoggedIn, user, isAuthLoading]);
+  }, [isLoggedIn, user, isLoading, logout]);
 
   // Entrance animations
   const anim1 = useRef(new Animated.Value(0)).current;
@@ -66,11 +71,14 @@ export default function LoginScreen() {
     try {
       const data = await login({ email: email.trim(), password });
       const role = data.user.role;
-      if (role === 'admin' || role === 'pemangku_jabatan') {
-        router.replace('/admin');
-      } else {
-        router.replace('/home');
+      
+      if (role !== 'mahasiswa') {
+        await logout(); // Clear token immediately
+        alert('Akses Ditolak: Aplikasi mobile hanya untuk Mahasiswa.');
+        return;
       }
+      
+      router.replace('/home');
     } catch {
       // error sudah disimpan di hook
     }

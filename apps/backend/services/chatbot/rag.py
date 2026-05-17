@@ -25,13 +25,26 @@ rag_route = Route(
 )
 
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
-llm = ChatOllama(model="llama3.2:3b")
-embeddings = OllamaEmbeddings(model="nomic-embed-text-v2-moe")
+
+_llm = None
+_embeddings = None
+
+def _get_llm():
+    global _llm
+    if _llm is None:
+        _llm = ChatOllama(model="llama3.2:3b")
+    return _llm
+
+def _get_embeddings():
+    global _embeddings
+    if _embeddings is None:
+        _embeddings = OllamaEmbeddings(model="nomic-embed-text-v2-moe")
+    return _embeddings
 
 chat_history = []
 
 def retrieve_docs(query: str, k: int = 5):
-    query_embedding = embeddings.embed_query(query)
+    query_embedding = _get_embeddings().embed_query(query)
     result = supabase.rpc("match_documents", {
         "query_embedding": query_embedding,
         "match_threshold": 0.3,
@@ -56,7 +69,7 @@ Konteks:
 Pertanyaan: {user_message}"""
 
     chat_history.append(HumanMessage(content=prompt))
-    response = llm.invoke(chat_history)
+    response = _get_llm().invoke(chat_history)
     chat_history.append(AIMessage(content=response.content))
 
     return response.content
@@ -80,7 +93,7 @@ Pertanyaan: {user_message}"""
 
     messages = chat_history + [HumanMessage(content=prompt)]
     full = []
-    for chunk in llm.stream(messages):
+    for chunk in _get_llm().stream(messages):
         token = chunk.content
         if token:
             full.append(token)

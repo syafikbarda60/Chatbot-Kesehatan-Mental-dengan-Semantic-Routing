@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Modal,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,8 +15,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 
 import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '@prototype/ui-shared';
+import { useTheme, useAuth } from '@prototype/ui-shared';
 import { Spacing } from '@prototype/ui-shared';
+import { Alert, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +34,21 @@ const MENU = [
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { logout } = useAuth();
+  
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+
+  const handleMenuPress = async (label: string) => {
+    if (label === 'Keluar') {
+      setShowLogoutModal(true);
+    }
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    await logout();
+    router.replace('/');
+  };
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
@@ -124,6 +142,7 @@ export default function ProfileScreen() {
             {MENU.map((item, i) => (
               <TouchableOpacity
                 key={i}
+                onPress={() => handleMenuPress(item.label)}
                 style={[
                   s.prefItem,
                   { backgroundColor: colors.surfaceContainerLowest },
@@ -176,6 +195,38 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <BottomNav />
+
+      {/* ── Custom Logout Modal ── */}
+      <Modal visible={showLogoutModal} transparent animationType="fade">
+        <View style={s.modalOverlay}>
+          <View style={[s.modalCard, { backgroundColor: colors.surfaceContainerLowest }]}>
+            <View style={[s.modalIconWrap, { backgroundColor: colors.error + '15' }]}>
+              <Ionicons name="log-out-outline" size={28} color={colors.error} />
+            </View>
+            <Text style={[s.modalTitle, { color: colors.onSurface }]}>Keluar Akun</Text>
+            <Text style={[s.modalDesc, { color: colors.onSurfaceVariant }]}>
+              Apakah Anda yakin ingin keluar? Anda harus login kembali untuk masuk ke Sanctuary.
+            </Text>
+            
+            <View style={s.modalBtnRow}>
+              <TouchableOpacity 
+                style={[s.modalBtn, s.modalBtnCancel, { backgroundColor: colors.surfaceContainerHigh }]} 
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={[s.modalBtnTxt, { color: colors.onSurface }]}>Batal</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[s.modalBtn, s.modalBtnConfirm, { backgroundColor: colors.error }]} 
+                onPress={confirmLogout}
+              >
+                <Text style={[s.modalBtnTxt, { color: '#ffffff' }]}>Ya, Keluar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -297,5 +348,27 @@ const s = StyleSheet.create({
     textAlign: 'center', fontSize: 11,
     fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 24,
   },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 320, borderRadius: 28, padding: 24,
+    alignItems: 'center', shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10,
+  },
+  modalIconWrap: {
+    width: 64, height: 64, borderRadius: 32,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+  },
+  modalTitle: { fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', marginBottom: 8 },
+  modalDesc: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
+  modalBtnRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
+  modalBtnCancel: {},
+  modalBtnConfirm: {},
+  modalBtnTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 });
 

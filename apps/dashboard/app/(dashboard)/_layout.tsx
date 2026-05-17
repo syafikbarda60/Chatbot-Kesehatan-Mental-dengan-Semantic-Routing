@@ -1,4 +1,4 @@
-import { Slot } from 'expo-router';
+import { Slot, router, usePathname } from 'expo-router';
 import { View, Text, StyleSheet, Pressable, ScrollView, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
@@ -18,7 +18,7 @@ const Colors = {
 };
 
 // NavItem Reaktif
-const NavItem = ({ icon, label, active = false }: { icon: any, label: string, active?: boolean }) => {
+const NavItem = ({ icon, label, active = false, onPress }: { icon: any, label: string, active?: boolean, onPress?: () => void }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const onPressIn = () => { Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true, speed: 20 }).start(); };
@@ -29,6 +29,7 @@ const NavItem = ({ icon, label, active = false }: { icon: any, label: string, ac
       <Pressable 
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        onPress={onPress}
         style={(state: any) => [
           styles.navItem, 
           active && styles.navItemActive, 
@@ -49,6 +50,7 @@ const NavItem = ({ icon, label, active = false }: { icon: any, label: string, ac
 };
 
 export default function DashboardLayout() {
+  const pathname = usePathname();
   return (
     <View style={styles.container}>
       {/* Sidebar - MindGuard Admin */}
@@ -62,11 +64,13 @@ export default function DashboardLayout() {
 
         {/* Menu Items */}
         <ScrollView style={styles.navMenu} contentContainerStyle={{ gap: 4 }}>
-          <NavItem icon="dashboard" label="Overview" active />
-          <NavItem icon="analytics" label="Student Insights" />
-          <NavItem icon="notifications-active" label="Alerts" />
-          <NavItem icon="psychology" label="Consultations" />
-          <NavItem icon="assessment" label="Reports" />
+          <NavItem icon="dashboard"             label="Overview"            active={pathname === '/(dashboard)'}     onPress={() => router.push('/(dashboard)')} />
+          <NavItem icon="event"                 label="Daftar Konsultasi"  active={pathname.includes('schedule')}   onPress={() => router.push('/(dashboard)/schedule')} />
+          <NavItem icon="event-available"       label="Atur Ketersediaan"  active={pathname.includes('jadwal')}     onPress={() => router.push('/(dashboard)/jadwal')} />
+          <NavItem icon="analytics"             label="Student Insights"   active={false} />
+          <NavItem icon="notifications-active" label="Alerts"             active={false} />
+          <NavItem icon="psychology"            label="Consultations"      active={false} />
+          <NavItem icon="assessment"            label="Reports"            active={false} />
         </ScrollView>
 
         {/* Bottom Section */}

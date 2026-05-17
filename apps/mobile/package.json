@@ -9,14 +9,15 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@prototype/api-client": "*",
-    "@prototype/ui-shared": "*",
-    "@prototype/utils": "*",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo-google-fonts/poppins": "^0.4.1",
     "@expo/vector-icons": "^15.1.1",
+    "@prototype/api-client": "*",
+    "@prototype/ui-shared": "*",
+    "@prototype/utils": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native/virtualized-lists": "^0.81.5",
     "@supabase/supabase-js": "^2.104.0",
     "expo": "~54.0.33",
     "expo-blur": "~15.0.8",

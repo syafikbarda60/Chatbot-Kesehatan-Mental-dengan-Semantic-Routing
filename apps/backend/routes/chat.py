@@ -3,48 +3,18 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
 from supabase import create_client
-from cryptography.fernet import Fernet
 from auth import get_current_user
 from dotenv import load_dotenv
-import os, json, sys
+import os, json
+
+from core.security import encrypt_text, decrypt_text
+from services.chatbot.core import chat as chat_fn, semantic_router
+from services.chatbot.guardrail import HARDCODED_RESPONSE
+from services.chatbot.rag import retrieve_docs
 
 load_dotenv()
 
-# ── Supabase & encryption ────────────────────────────────────────────────────
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
-
-_raw_key = os.getenv("ENCRYPTION_KEY")
-if _raw_key:
-    fernet = Fernet(_raw_key.encode())
-else:
-    # Generate satu kali dan print peringatan — simpan ke .env segera
-    _generated = Fernet.generate_key()
-    print(
-        f"[WARNING] ENCRYPTION_KEY tidak ditemukan di .env. "
-        f"Gunakan key berikut:\nENCRYPTION_KEY={_generated.decode()}",
-        file=sys.stderr,
-    )
-    fernet = Fernet(_generated)
-
-
-def _encrypt(text: str) -> str:
-    return fernet.encrypt(text.encode()).decode()
-
-
-def _decrypt(token: str) -> str:
-    return fernet.decrypt(token.encode()).decode()
-
-
-# ── Semantic router & LLM (lazy import agar tidak circular) ─────────────────
-def _get_chat_core():
-    """Import main.py chat() dan router secara lazy."""
-    import importlib, sys
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if backend_dir not in sys.path:
-        sys.path.insert(0, backend_dir)
-    mod = importlib.import_module("main")
-    return mod.chat, mod.router
-
 
 router = APIRouter(prefix="/chat" if False else "", tags=["Chat"])
 
@@ -54,25 +24,13 @@ router_router = APIRouter(prefix="/router", tags=["Router"])
 rag_router = APIRouter(prefix="/rag", tags=["RAG"])
 chat_router = APIRouter(prefix="/chat", tags=["Chat"])
 
-
-# ── Schema ───────────────────────────────────────────────────────────────────
-
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     user_id: Optional[str] = None
 
-
-# ── CB-04: checkSafetyGuardrail ──────────────────────────────────────────────
-
 @guardrail_router.post("/check")
 def check_safety_guardrail(request: ChatRequest):
-    """
-    CB-04 — Query similarity search ke semantic-router untuk mendeteksi
-    indikasi self-harm sebelum memproses pesan chatbot.
-    """
-    from routes.guardrail import HARDCODED_RESPONSE
-    chat_fn, semantic_router = _get_chat_core()
     result = semantic_router(request.message)
     is_high_risk = result.name == "guardrail"
     return {
@@ -81,29 +39,13 @@ def check_safety_guardrail(request: ChatRequest):
         "response": HARDCODED_RESPONSE if is_high_risk else None,
     }
 
-
-# ── CB-05: routeSemanticIntent ───────────────────────────────────────────────
-
 @router_router.post("/intent")
 def route_semantic_intent(request: ChatRequest):
-    """
-    CB-05 — Gunakan semantic-router untuk memilih jalur: edukasi (rag)
-    atau emosional (conversational) atau guardrail.
-    """
-    _, semantic_router = _get_chat_core()
     result = semantic_router(request.message)
     return {"route": result.name or "conversational"}
 
-
-# ── CB-06: retrieveRAGContext ────────────────────────────────────────────────
-
 @rag_router.post("/context")
 def retrieve_rag_context(request: ChatRequest, user=Depends(get_current_user)):
-    """
-    CB-06 — ANN search pada PostgreSQL pgvector untuk mengambil
-    dokumen referensi medis tervalidasi.
-    """
-    from routes.rag import retrieve_docs
     docs = retrieve_docs(request.message)
     return {
         "context": [
@@ -112,23 +54,8 @@ def retrieve_rag_context(request: ChatRequest, user=Depends(get_current_user)):
         ]
     }
 
-
-# ── CB-07: streamChatResponse ────────────────────────────────────────────────
-
 @chat_router.post("/stream")
 def stream_chat_response(request: ChatRequest, user=Depends(get_current_user)):
-    """
-    CB-07 — Stream respons AI per token via SSE.
-    Guardrail check → semantic route → stream dari LLM (conversational/RAG).
-    """
-    from routes.guardrail import HARDCODED_RESPONSE
-    from routes.conversational import stream_conversational_response
-    from routes.rag import stream_rag_response
-
-    _, semantic_router = _get_chat_core()
-    route_result = semantic_router(request.message)
-    route = route_result.name or "conversational"
-
     def generate():
         # Guardrail: kirim satu shot, tidak perlu stream
         if route == "guardrail":
@@ -184,32 +111,23 @@ def stream_chat_response(request: ChatRequest, user=Depends(get_current_user)):
         },
     )
 
-
-# ── CB-08: saveChatHistory ───────────────────────────────────────────────────
-
 @chat_router.post("/history")
 def save_chat_history(request: ChatRequest, user=Depends(get_current_user)):
-    """
-    CB-08 — Simpan log percakapan antara mahasiswa dan chatbot ke dalam
-    basis data dengan enkripsi JSONB (Fernet/AES-GCM).
-    """
     if not request.session_id:
         return {"status": "skipped", "reason": "no session_id"}
 
-    chat_fn, semantic_router = _get_chat_core()
     result = semantic_router(request.message)
     route_used = result.name or "conversational"
     response_text = chat_fn(request.message)
 
-    # Enkripsi content, simpan sebagai text (sesuai kolom existing)
-    encrypted_user_msg = _encrypt(request.message)
-    encrypted_bot_msg = _encrypt(response_text)
+    encrypted_user_msg = encrypt_text(request.message)
+    encrypted_bot_msg = encrypt_text(response_text)
 
     supabase.table("messages").insert({
         "session_id": request.session_id,
         "user_id": str(user.id),
         "role": "user",
-        "content": encrypted_user_msg,   # text, bukan jsonb
+        "content": encrypted_user_msg,
         "route_used": route_used,
     }).execute()
 
@@ -217,21 +135,14 @@ def save_chat_history(request: ChatRequest, user=Depends(get_current_user)):
         "session_id": request.session_id,
         "user_id": str(user.id),
         "role": "assistant",
-        "content": encrypted_bot_msg,   # text, bukan jsonb
+        "content": encrypted_bot_msg,
         "route_used": route_used,
     }).execute()
 
     return {"status": "saved", "route": route_used, "response": response_text}
 
-
-# ── Unified chat endpoint (shortcut CB-04+05+07+08) ─────────────────────────
-
 @chat_router.post("")
 def chat_unified(request: ChatRequest, user=Depends(get_current_user)):
-    """Unified: guardrail check → route → stream → save history."""
-    from routes.guardrail import HARDCODED_RESPONSE
-    chat_fn, semantic_router = _get_chat_core()
-
     route_result = semantic_router(request.message)
     route = route_result.name or "conversational"
     is_high_risk = route == "guardrail"
@@ -253,14 +164,14 @@ def chat_unified(request: ChatRequest, user=Depends(get_current_user)):
                 "session_id": request.session_id,
                 "user_id": str(user.id),
                 "role": "user",
-                "content": _encrypt(request.message),   # text
+                "content": encrypt_text(request.message),
                 "route_used": route,
             },
             {
                 "session_id": request.session_id,
                 "user_id": str(user.id),
                 "role": "assistant",
-                "content": _encrypt(response_text),     # text
+                "content": encrypt_text(response_text),
                 "route_used": route,
             },
         ]).execute()
