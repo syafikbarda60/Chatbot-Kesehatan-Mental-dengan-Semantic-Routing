@@ -31,9 +31,9 @@ guardrail_route = Route(
 HARDCODED_RESPONSE = """Saya mendengar kamu, dan saya sangat khawatir dengan kondisimu sekarang.
 
 Kamu tidak sendirian. Tolong segera hubungi:
-- **Into The Light Indonesia**: 119 ext 8
-- **Yayasan Pulih**: (021) 788-42580
-- **IGD rumah sakit terdekat**
+• Into The Light Indonesia: 119 ext 8
+• Yayasan Pulih: (021) 788-42580
+• IGD rumah sakit terdekat
 
 Apakah kamu aman sekarang?"""
 

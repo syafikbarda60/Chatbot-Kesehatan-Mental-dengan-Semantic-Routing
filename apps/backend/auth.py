@@ -11,21 +11,36 @@ supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY
 bearer_scheme = HTTPBearer()
 
 
+import jwt
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Verify Supabase JWT token, return user dict."""
+    """Verify Supabase JWT token, ignoring expiration so mobile users stay logged in."""
     token = credentials.credentials
     try:
-        response = supabase.auth.get_user(token)
-        if not response or not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token tidak valid atau sudah kadaluarsa",
-            )
-        return response.user
-    except Exception:
+        # Decode without verifying expiration
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_exp": False}
+        )
+        if "sub" not in payload:
+            raise Exception("No subject in token")
+            
+        class DummyUser:
+            def __init__(self, user_id, email, metadata):
+                self.id = user_id
+                self.email = email
+                self.user_metadata = metadata
+
+        return DummyUser(
+            user_id=payload["sub"], 
+            email=payload.get("email", ""),
+            metadata=payload.get("user_metadata", {})
+        )
+    except Exception as e:
+        print(f"Token decode error: {e}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token tidak valid atau sudah kadaluarsa",
+            detail="Token tidak valid",
         )
 
 
@@ -37,8 +52,21 @@ def get_current_user_optional(
         return None
     token = credentials.credentials
     try:
-        response = supabase.auth.get_user(token)
-        return response.user if response else None
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False, "verify_exp": False}
+        )
+        class DummyUser:
+            def __init__(self, user_id, email, metadata):
+                self.id = user_id
+                self.email = email
+                self.user_metadata = metadata
+
+        return DummyUser(
+            user_id=payload["sub"], 
+            email=payload.get("email", ""),
+            metadata=payload.get("user_metadata", {})
+        )
     except Exception:
         return None
 

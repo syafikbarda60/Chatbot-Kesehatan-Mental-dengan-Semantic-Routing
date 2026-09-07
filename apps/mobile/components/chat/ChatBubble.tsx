@@ -9,14 +9,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
-
-export type MessageSender = 'user' | 'ai';
-export interface Message {
-  id: string;
-  text: string;
-  sender: MessageSender;
-  timestamp: Date;
-}
+import type { Message, MessageSender } from '@prototype/utils';
 
 interface Props { message: Message; index: number }
 
@@ -36,6 +29,8 @@ export const ChatBubble: React.FC<Props> = ({ message }) => {
       Animated.timing(y,       { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  if (!message.text) return null;
 
   if (isUser) {
     return (

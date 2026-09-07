@@ -9,6 +9,22 @@ export async function saveToken(token: string) {
   }
 }
 
+export async function saveRefreshToken(token: string) {
+  if (Platform.OS === 'web') {
+    localStorage.setItem('sanctuary_refresh_token', token);
+  } else {
+    await AsyncStorage.setItem('sanctuary_refresh_token', token);
+  }
+}
+
+export async function getRefreshToken(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    return localStorage.getItem('sanctuary_refresh_token');
+  } else {
+    return await AsyncStorage.getItem('sanctuary_refresh_token');
+  }
+}
+
 export async function getToken(): Promise<string | null> {
   if (Platform.OS === 'web') {
     return localStorage.getItem('sanctuary_token');
@@ -38,9 +54,10 @@ export async function getStoredUser<T = Record<string, unknown>>(): Promise<T | 
 export async function clearAuth() {
   if (Platform.OS === 'web') {
     localStorage.removeItem('sanctuary_token');
+    localStorage.removeItem('sanctuary_refresh_token');
     localStorage.removeItem('sanctuary_user');
   } else {
-    await AsyncStorage.multiRemove(['sanctuary_token', 'sanctuary_user']);
+    await AsyncStorage.multiRemove(['sanctuary_token', 'sanctuary_refresh_token', 'sanctuary_user']);
   }
 }
 
@@ -56,6 +73,7 @@ export function getStoredUserSync<T = Record<string, unknown>>(): T | null {
 export function clearAuthSync() {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('sanctuary_token');
+    localStorage.removeItem('sanctuary_refresh_token');
     localStorage.removeItem('sanctuary_user');
   }
 }

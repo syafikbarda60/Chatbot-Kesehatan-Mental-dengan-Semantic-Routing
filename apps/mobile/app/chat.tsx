@@ -11,7 +11,7 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +26,9 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList>(null);
   const { colors } = useTheme();
 
+  const params = useLocalSearchParams();
+  const initialSessionId = params.sessionId as string | undefined;
+
   const {
     messages,
     inputText, setInputText,
@@ -35,7 +38,8 @@ export default function ChatScreen() {
     quickReplies, showQuickReplies,
     sendMessage,
     sendBtnScale,
-  } = useChat();
+    isLoadingHistory,
+  } = useChat(initialSessionId);
 
   useEffect(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
@@ -101,16 +105,22 @@ export default function ChatScreen() {
       <StressBar level={stressLevel} />
 
       {/* ── Message List ── */}
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(m) => m.id}
-        renderItem={({ item, index }) => <ChatBubble message={item} index={index} />}
-        contentContainerStyle={s.msgList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState />}
-        ListFooterComponent={isTyping ? <TypingIndicator /> : null}
-      />
+      {isLoadingHistory ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: colors.onSurfaceVariant, marginBottom: 8, fontFamily: 'PlusJakartaSans_500Medium' }}>Memuat riwayat chat...</Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item, index }) => <ChatBubble message={item} index={index} />}
+          contentContainerStyle={s.msgList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+        />
+      )}
 
       {/* ── Quick Replies ── */}
       {showQuickReplies && messages.length < 16 && (

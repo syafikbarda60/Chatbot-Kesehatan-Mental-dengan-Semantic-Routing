@@ -32,7 +32,7 @@ _embeddings = None
 def _get_llm():
     global _llm
     if _llm is None:
-        _llm = ChatOllama(model="llama3.2:3b")
+        _llm = ChatOllama(model="hf.co/SekarBestNY/llama-3-8b-instruct-gguf:Q4_K_M")
     return _llm
 
 def _get_embeddings():

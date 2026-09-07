@@ -66,7 +66,7 @@ export default function DashboardLayout() {
         <ScrollView style={styles.navMenu} contentContainerStyle={{ gap: 4 }}>
           <NavItem icon="dashboard"             label="Overview"            active={pathname === '/(dashboard)'}     onPress={() => router.push('/(dashboard)')} />
           <NavItem icon="event"                 label="Daftar Konsultasi"  active={pathname.includes('schedule')}   onPress={() => router.push('/(dashboard)/schedule')} />
-          <NavItem icon="event-available"       label="Atur Ketersediaan"  active={pathname.includes('jadwal')}     onPress={() => router.push('/(dashboard)/jadwal')} />
+          <NavItem icon="event-available"       label="Atur Ketersediaan"  active={pathname.includes('availability')} onPress={() => router.push('/(dashboard)/availability')} />
           <NavItem icon="analytics"             label="Student Insights"   active={false} />
           <NavItem icon="notifications-active" label="Alerts"             active={false} />
           <NavItem icon="psychology"            label="Consultations"      active={false} />

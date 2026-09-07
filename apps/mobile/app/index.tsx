@@ -27,6 +27,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isLoggedIn && user && !isLoading) {
@@ -158,11 +159,14 @@ export default function LoginScreen() {
                 style={[s.input, { color: colors.onSurface }]}
                 placeholder="••••••••"
                 placeholderTextColor={colors.outline + '70'}
-                secureTextEntry
+                secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
                 editable={!isLoading}
               />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingLeft: 8 }}>
+                <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color={colors.outline} />
+              </TouchableOpacity>
             </View>
           </View>
 

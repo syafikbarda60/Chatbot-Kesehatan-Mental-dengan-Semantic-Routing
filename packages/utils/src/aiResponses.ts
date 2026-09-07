@@ -4,9 +4,9 @@
 
 const RESPONSES = {
   greeting: [
-    'Hei, senang kamu di sini 💙 Apa yang ingin kamu ceritakan hari ini?',
+    'Hei, senang kamu di sini  Apa yang ingin kamu ceritakan hari ini?',
     'Halo! Aku siap mendengarkan. Bagaimana perasaanmu sekarang?',
-    'Selamat datang ☀️ Ceritakan apapun yang ada di pikiranmu.',
+    'Selamat datang  Ceritakan apapun yang ada di pikiranmu.',
   ],
   general: [
     'Aku dengar kamu... Dan itu pasti tidak mudah. Mau cerita lebih? 🤍',

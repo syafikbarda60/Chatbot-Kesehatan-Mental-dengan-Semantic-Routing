@@ -99,6 +99,19 @@ def seed_data():
 
     # 4. Jadwal & Booking Konsultasi
     print("Menambahkan jadwal & booking konsultasi...")
+    
+    jadwal_tersedia = []
+    for i in range(5):
+        tgl = now if i < 3 else now + timedelta(days=1)
+        jadwal_tersedia.append({
+            "konselor_id": konselor_id,
+            "tanggal": tgl.strftime("%Y-%m-%d"),
+            "waktu_mulai": f"{10+i:02d}:00:00",
+            "waktu_selesai": f"{11+i:02d}:00:00",
+            "status": "tersedia"
+        })
+    supabase.table("jadwal_konsultasi").insert(jadwal_tersedia).execute()
+
     jadwal_res = supabase.table("jadwal_konsultasi").insert({
         "konselor_id": konselor_id,
         "tanggal": now.strftime("%Y-%m-%d"),

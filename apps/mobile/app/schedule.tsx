@@ -68,7 +68,7 @@ export default function ScheduleScreen() {
           id: u.user_id,
           name: u.nama,
           specialty: u.role === 'konselor' ? 'Konselor Psikologi' : 'Layanan Dukungan',
-          rating: 4.8 + (i % 2) * 0.1,
+          rating: parseFloat((4.8 + (i % 2) * 0.1).toFixed(1)),
           sessions: 120 + i * 35,
           avatar: 'person',
           color: i % 2 === 0 ? '#5C8B9E' : '#7B8C6E',
@@ -99,7 +99,7 @@ export default function ScheduleScreen() {
     setIsBooking(true);
     
     try {
-      await apiBuatBooking({ jadwal_id: selectedSlot.jadwal_id });
+      await apiBuatBooking(selectedSlot.jadwal_id);
       Alert.alert(
         'Berhasil Dijadwalkan! 🎉',
         `Konsultasi dengan ${selectedCounselor?.name} pada ${date.day}, ${date.date} pukul ${selectedSlot.waktu_mulai} telah dikonfirmasi.`,

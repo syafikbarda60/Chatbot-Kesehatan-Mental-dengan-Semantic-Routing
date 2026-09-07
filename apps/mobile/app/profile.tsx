@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { apiGetChatSessions, apiGetJournals } from '@prototype/api-client';
 
 import { BottomNav, FadeIn } from '../components/ui';
 import { useTheme, useAuth } from '@prototype/ui-shared';
@@ -34,9 +35,28 @@ const MENU = [
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   
-  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [stats, setStats] = useState({ chats: 0, journals: 0 });
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const [chatRes, journalRes] = await Promise.all([
+          apiGetChatSessions(),
+          apiGetJournals(100, 0),
+        ]);
+        setStats({
+          chats: chatRes.sessions?.length || 0,
+          journals: journalRes.journals?.length || 0,
+        });
+      } catch (err) {
+        console.error("Failed to load profile stats:", err);
+      }
+    }
+    loadStats();
+  }, []);
 
   const handleMenuPress = async (label: string) => {
     if (label === 'Keluar') {
@@ -82,8 +102,8 @@ export default function ProfileScreen() {
         {/* ── Profile Header ── */}
         <FadeIn delay={0}>
           <View style={s.profileHeader}>
-            <Text style={[s.profileName, { color: colors.onSurface }]}>Elena Vance</Text>
-            <Text style={[s.studentId, { color: colors.outline }]}>Student ID: 882049-X</Text>
+            <Text style={[s.profileName, { color: colors.onSurface }]}>{user?.nama || 'Pengguna'}</Text>
+            <Text style={[s.studentId, { color: colors.outline }]}>{user?.nim ? `NIM: ${user.nim}` : (user?.email || 'Sanctuary User')}</Text>
           </View>
         </FadeIn>
 
@@ -92,10 +112,10 @@ export default function ProfileScreen() {
           <View style={s.bentoRow}>
             {/* Card 1 */}
             <View style={[s.bentoCard, { backgroundColor: colors.surfaceContainerLowest, width: CARD_SIZE, height: CARD_SIZE }]}>
-              <Ionicons name="calendar-outline" size={28} color={colors.primary} />
+              <Ionicons name="chatbubbles-outline" size={28} color={colors.primary} />
               <View style={s.bentoBottom}>
-                <Text style={[s.bentoValue, { color: colors.onSurface }]}>124</Text>
-                <Text style={[s.bentoLabel, { color: colors.onSurfaceVariant }]}>Days Active</Text>
+                <Text style={[s.bentoValue, { color: colors.onSurface }]}>{stats.chats}</Text>
+                <Text style={[s.bentoLabel, { color: colors.onSurfaceVariant }]}>Sesi Percakapan</Text>
               </View>
             </View>
 
@@ -103,8 +123,8 @@ export default function ProfileScreen() {
             <View style={[s.bentoCard, { backgroundColor: colors.surfaceContainerLowest, width: CARD_SIZE, height: CARD_SIZE }]}>
               <Ionicons name="create-outline" size={28} color={colors.primary} />
               <View style={s.bentoBottom}>
-                <Text style={[s.bentoValue, { color: colors.onSurface }]}>48</Text>
-                <Text style={[s.bentoLabel, { color: colors.onSurfaceVariant }]}>Journals Completed</Text>
+                <Text style={[s.bentoValue, { color: colors.onSurface }]}>{stats.journals}</Text>
+                <Text style={[s.bentoLabel, { color: colors.onSurfaceVariant }]}>Jurnal Disimpan</Text>
               </View>
             </View>
           </View>
@@ -136,7 +156,7 @@ export default function ProfileScreen() {
         </FadeIn>
 
         {/* ── Account Preferences ── */}
-        <FadeIn delay={240}>
+        {/* <FadeIn delay={240}>
           <Text style={[s.prefTitle, { color: colors.outline }]}>ACCOUNT PREFERENCES</Text>
           <View style={[s.prefCard, { backgroundColor: colors.surfaceContainerLow }]}>
             {MENU.map((item, i) => (
@@ -170,15 +190,15 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </FadeIn>
+        </FadeIn> */}
 
         {/* ── Weekly Summary mini stats ── */}
         <FadeIn delay={320}>
           <View style={[s.summaryCard, { backgroundColor: colors.surfaceContainerLowest }]}>
             {[
-              { icon: 'chatbubble-outline', label: 'Sesi Chat', val: '8', color: colors.primary },
-              { icon: 'checkmark-circle-outline', label: 'Asesmen', val: '2', color: '#4D9B6F' },
-              { icon: 'flame-outline', label: 'Streak', val: '5🔥', color: '#D4A843' },
+              { icon: 'time-outline', label: 'Riwayat', val: stats.chats.toString(), color: colors.primary },
+              { icon: 'book-outline', label: 'Jurnal', val: stats.journals.toString(), color: '#4D9B6F' },
+              { icon: 'flame-outline', label: 'Streak', val: '1🔥', color: '#D4A843' },
             ].map((stat, i) => (
               <View key={i} style={[s.statItem, i > 0 && { borderLeftWidth: 1, borderLeftColor: colors.outlineVariant + '30' }]}>
                 <Ionicons name={stat.icon as any} size={20} color={stat.color} />

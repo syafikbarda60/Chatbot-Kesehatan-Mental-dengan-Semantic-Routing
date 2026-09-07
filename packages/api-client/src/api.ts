@@ -1,5 +1,12 @@
 import { Platform } from 'react-native';
-import { getToken, saveToken, saveUser } from './storage';
+import { getToken, saveToken, saveUser, saveRefreshToken, getRefreshToken, clearAuth } from './storage';
+
+let unauthorizedCallback: (() => void) | null = null;
+let refreshPromise: Promise<LoginResponse> | null = null;
+
+export function setUnauthorizedCallback(callback: () => void) {
+  unauthorizedCallback = callback;
+}
 
 // Web dashboard runs on same PC as backend → localhost
 // Mobile (Expo Go on physical device) → LAN IP
@@ -31,6 +38,36 @@ export async function apiFetch<T = unknown>(
   const res = await fetch(`${base}${path}`, { ...fetchOpts, headers });
 
   if (!res.ok) {
+    if (res.status === 401 && auth && path !== '/auth/refresh') {
+      const refreshToken = await getRefreshToken();
+      if (refreshToken) {
+        try {
+          // Prevent race conditions with multiple concurrent 401s
+          if (!refreshPromise) {
+            refreshPromise = apiRefreshSession(refreshToken);
+          }
+          const data = await refreshPromise;
+          const retryHeaders = {
+            ...headers,
+            'Authorization': `Bearer ${data.access_token}`
+          };
+          const retryRes = await fetch(`${base}${path}`, { ...fetchOpts, headers: retryHeaders });
+          if (retryRes.ok) {
+            return retryRes.json() as Promise<T>;
+          }
+        } catch (refreshErr) {
+          console.error("Session refresh failed:", refreshErr);
+        } finally {
+          refreshPromise = null;
+        }
+      }
+
+      await clearAuth();
+      if (unauthorizedCallback) {
+        unauthorizedCallback();
+      }
+    }
+
     let detail = `HTTP ${res.status}`;
     try {
       const err = await res.json();
@@ -70,6 +107,19 @@ export async function apiLogin(payload: LoginPayload): Promise<LoginResponse> {
     auth: false,
   });
   await saveToken(data.access_token);
+  await saveRefreshToken(data.refresh_token);
+  await saveUser(data.user);
+  return data;
+}
+
+export async function apiRefreshSession(refreshToken: string): Promise<LoginResponse> {
+  const data = await apiFetch<LoginResponse>('/auth/refresh', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken }),
+    auth: false,
+  });
+  await saveToken(data.access_token);
+  await saveRefreshToken(data.refresh_token);
   await saveUser(data.user);
   return data;
 }
@@ -133,6 +183,15 @@ export async function apiChat(payload: ChatPayload): Promise<ChatResponse> {
     body: JSON.stringify(payload),
   });
 }
+
+export async function apiGetChatSessions(): Promise<{ sessions: any[] }> {
+  return apiFetch('/chat/sessions');
+}
+
+export async function apiGetChatHistory(session_id: string): Promise<{ messages: any[] }> {
+  return apiFetch(`/chat/history/${session_id}`);
+}
+
 
 /**
  * SSE streaming chat. Calls `onToken` for each text chunk, `onDone` when complete.
@@ -361,9 +420,7 @@ export async function apiUpdateJadwalStatus(jadwal_id: string, status: 'tersedia
 }
 
 export async function apiGetKonselor(): Promise<{ users: UserRow[] }> {
-  return apiFetch<{ users: UserRow[]; total: number }>('/accounts').then(r => ({
-    users: r.users.filter(u => u.role === 'konselor'),
-  }));
+  return apiFetch<{ users: UserRow[] }>('/accounts/konselor');
 }
 
 

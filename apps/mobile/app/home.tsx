@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '@prototype/ui-shared';
+import { useTheme, useAuth } from '@prototype/ui-shared';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
 import { apiSaveJournal } from '@prototype/api-client';
 
@@ -38,17 +38,22 @@ const formatDate = () =>
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
+  const { user } = useAuth();
+  const [selectedMood, setSelectedMood] = useState<'Calm' | 'Anxious' | 'Focused' | 'Tired' | null>(null);
   const [journalText, setJournalText] = useState('');
   const [isSavingJournal, setIsSavingJournal] = useState(false);
 
   const handleSaveJournal = async () => {
-    if (!journalText.trim()) return;
+    if (!journalText.trim() || !selectedMood) {
+      Alert.alert('Perhatian', 'Pilih mood dan tulis jurnal terlebih dahulu.');
+      return;
+    }
     setIsSavingJournal(true);
     try {
-      await apiSaveJournal({ content: journalText });
+      await apiSaveJournal({ content: journalText, mood: selectedMood });
       Alert.alert('Tersimpan', 'Jurnal kamu berhasil disimpan.');
       setJournalText('');
+      setSelectedMood(null);
     } catch (err: any) {
       Alert.alert('Gagal', err.message || 'Gagal menyimpan jurnal.');
     } finally {
@@ -70,12 +75,11 @@ export default function HomeScreen() {
 
   const cardW = (width - Spacing.base * 2 - Spacing.base) / 2;
 
-  // Navigation menu items
   const navItems = [
     { icon: 'chatbubble-outline', label: 'Chat', route: '/chat' },
-    { icon: 'water-outline', label: 'Mood', route: '/home' },
-    { icon: 'target-outline', label: 'Goal', route: '/stats' },
-    { icon: 'moon-outline', label: 'Night', route: '/home' },
+    { icon: 'time-outline', label: 'Riwayat', route: '/chat-history' },
+    { icon: 'stats-chart-outline', label: 'laporan mingguan', route: '/stats' },
+    // { icon: 'call-outline', label: 'Hotline', route: '/hotline' },
   ];
 
   return (
@@ -89,7 +93,7 @@ export default function HomeScreen() {
           <View style={s.greetRow}>
             <View style={s.greetLeft}>
               <Text style={[s.greetTitle, { color: colors.onSurface }]}>
-                {getGreeting()}, Luffy
+                {getGreeting()}{user?.nama ? `, ${user.nama.split(' ')[0]}` : ''}
               </Text>
               <Text style={[s.greetSub, { color: colors.onSurfaceVariant }]}>
                 A quiet space for your thoughts to settle.
@@ -129,9 +133,9 @@ export default function HomeScreen() {
               <View style={s.dialogBlobLarge} />
               <View style={s.dialogBlobSmall} />
               <View style={s.dialogText}>
-                <Text style={s.dialogTitle}>Enter the Dialogue</Text>
+                <Text style={s.dialogTitle}>Mulai cerita</Text>
                 <Text style={s.dialogDesc}>
-                  Your AI companion listens to your thoughts and guides you through challenges.
+                  AI teman Ceritamu.
                 </Text>
               </View>
               <TouchableOpacity
@@ -146,12 +150,12 @@ export default function HomeScreen() {
         </FadeIn>
 
         {/* ── Quotes Section 1 ── */}
-        <FadeIn delay={200}>
+        {/* <FadeIn delay={200}>
           <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
             <Text style={[s.sectionEyebrow, { color: colors.outline }]}>MINDFUL QUOTE</Text>
             <View style={s.quoteBgWrapper}>
               <Ionicons
-                name="quotes"
+                name="chatbubble-outline"
                 size={64}
                 color={colors.primary + '15'}
                 style={s.quoteBgIcon}
@@ -162,7 +166,7 @@ export default function HomeScreen() {
             </View>
             <Text style={[s.quoteAuthor, { color: colors.primary }]}>— CAROLINE MYSS</Text>
           </View>
-        </FadeIn>
+        </FadeIn> */}
 
         {/* ── Self-Journaling Section ── */}
         {/* ── Self-Journaling Section ── */}
@@ -182,6 +186,27 @@ export default function HomeScreen() {
                 </View>
                 <MaterialIcons name="edit-note" size={28} color={colors.outline + '80'} />
               </TouchableOpacity>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                {['Calm', 'Anxious', 'Focused', 'Tired'].map(mood => (
+                  <TouchableOpacity
+                    key={mood}
+                    onPress={() => setSelectedMood(mood as any)}
+                    style={{
+                      paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
+                      backgroundColor: selectedMood === mood ? colors.primary : colors.surfaceContainerHigh,
+                    }}
+                  >
+                    <Text style={{ 
+                      fontSize: 12, 
+                      fontFamily: 'PlusJakartaSans_600SemiBold', 
+                      color: selectedMood === mood ? '#fff' : colors.onSurface 
+                    }}>
+                      {mood}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <View style={{ position: 'relative', marginBottom: 24 }}>
                 <TextInput
@@ -216,9 +241,9 @@ export default function HomeScreen() {
               </View>
 
               <TouchableOpacity
-                style={[s.journalBtn, { backgroundColor: colors.primary, opacity: journalText.trim() ? 1 : 0.5, width: '100%' }]}
+                style={[s.journalBtn, { backgroundColor: colors.primary, opacity: (journalText.trim() && selectedMood) ? 1 : 0.5, width: '100%' }]}
                 onPress={handleSaveJournal}
-                disabled={!journalText.trim() || isSavingJournal}
+                disabled={!journalText.trim() || !selectedMood || isSavingJournal}
               >
                 {isSavingJournal ? (
                   <ActivityIndicator size="small" color="#fff" />
@@ -235,7 +260,7 @@ export default function HomeScreen() {
           <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
             <View style={s.quoteBgWrapper}>
               <Ionicons
-                name="quotes"
+                name="chatbubble-outline"
                 size={64}
                 color={colors.primary + '15'}
                 style={s.quoteBgIcon}

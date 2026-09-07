@@ -1,7 +1,13 @@
 // utils/stressDetection.ts
 // Pure function — no side effects. Takes message list, returns 0–10 stress score.
 
-import type { Message } from '../components/chat/ChatBubble';
+export type MessageSender = 'user' | 'ai';
+export interface Message {
+  id: string;
+  text: string;
+  sender: MessageSender;
+  timestamp: Date;
+}
 
 const KEYWORDS = {
   high: [

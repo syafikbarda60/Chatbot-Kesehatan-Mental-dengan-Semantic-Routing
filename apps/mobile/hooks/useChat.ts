@@ -1,14 +1,9 @@
-// hooks/useChat.ts
-// Encapsulates ALL chat state and side-effects.
-// Screens only call the returned interface — no logic leaks out.
-// v2: hits backend /chat endpoint instead of local AI responses.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated } from 'react-native';
 import { analyzeStress, QUICK_REPLIES } from '@prototype/utils';
-import { apiChatStream } from '@prototype/api-client';
-import type { Message } from '../components/chat/ChatBubble';
-
+import { apiChatStream, apiGetChatHistory } from '@prototype/api-client';
+import {Message} from '@prototype/utils';
 export interface UseChatReturn {
   messages: Message[];
   inputText: string;
@@ -24,6 +19,7 @@ export interface UseChatReturn {
   sendBtnScale: Animated.Value;
   sessionId: string;
   isHighRisk: boolean;
+  isLoadingHistory: boolean;
 }
 
 // Generate session ID per chat session (UUIDv4 for PostgreSQL compatibility)
@@ -36,13 +32,13 @@ function generateSessionId() {
 
 // Greeting lokal — tidak perlu hit backend
 const GREETINGS = [
-  'Hei, senang kamu di sini 💙 Apa yang ingin kamu ceritakan hari ini?',
+  'Hei, senang kamu di sini  Apa yang ingin kamu ceritakan hari ini?',
   'Halo! Aku siap mendengarkan. Bagaimana perasaanmu sekarang?',
-  'Selamat datang ☀️ Ceritakan apapun yang ada di pikiranmu.',
+  'Selamat datang  Ceritakan apapun yang ada di pikiranmu.',
 ];
 const pickGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
-export function useChat(): UseChatReturn {
+export function useChat(initialSessionId?: string): UseChatReturn {
   const [messages, setMessages]         = useState<Message[]>([]);
   const [inputText, setInputText]       = useState('');
   const [isTyping, setIsTyping]         = useState(false);
@@ -52,8 +48,9 @@ export function useChat(): UseChatReturn {
   const [quickReplies, setQuickReplies] = useState(QUICK_REPLIES.initial);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [isHighRisk, setIsHighRisk]     = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  const sessionId      = useRef(generateSessionId()).current;
+  const sessionId      = useRef(initialSessionId || generateSessionId()).current;
   const sendBtnScale   = useRef(new Animated.Value(1)).current;
   const abortStreamRef = useRef<(() => void) | null>(null);
 
@@ -65,11 +62,31 @@ export function useChat(): UseChatReturn {
     ]);
   }, []);
 
-  // ── Greeting on mount ──────────────────────────────────────────
+  // ── Greeting or History on mount ───────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => addAI(pickGreeting()), 600);
-    return () => clearTimeout(t);
-  }, [addAI]);
+    if (initialSessionId) {
+      setIsLoadingHistory(true);
+      apiGetChatHistory(initialSessionId)
+        .then((res) => {
+          const histMessages = res.messages.map((m: any) => ({
+            id: m.id || `hist-${m.created_at}`,
+            text: m.content,
+            sender: m.role === 'user' ? 'user' : 'ai',
+            timestamp: new Date(m.created_at),
+          }));
+          setMessages(histMessages);
+        })
+        .catch(err => {
+          console.error("Failed to load chat history:", err);
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      const t = setTimeout(() => addAI(pickGreeting()), 600);
+      return () => clearTimeout(t);
+    }
+  }, [addAI, initialSessionId]);
 
   // ── Abort stream on unmount ────────────────────────────────────
   useEffect(() => {
@@ -136,8 +153,8 @@ export function useChat(): UseChatReturn {
       // Start SSE stream
       const abort = apiChatStream(
         { message: text.trim(), session_id: sessionId },
-        // onToken: append token to AI message in-place
         (token) => {
+          setIsTyping(false); // Hide typing dots once first token arrives
           setMessages((prev) =>
             prev.map((m) =>
               m.id === aiMsgId ? { ...m, text: m.text + token } : m
@@ -198,6 +215,7 @@ export function useChat(): UseChatReturn {
     sendBtnScale,
     sessionId,
     isHighRisk,
+    isLoadingHistory,
   };
 }
 

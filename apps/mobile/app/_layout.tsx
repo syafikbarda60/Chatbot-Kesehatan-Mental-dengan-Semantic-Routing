@@ -1,6 +1,7 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { setUnauthorizedCallback } from '@prototype/api-client';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -27,6 +28,12 @@ export default function RootLayout() {
   });
 
   const [splashAnimationFinished, setSplashAnimationFinished] = useState(false);
+
+  useEffect(() => {
+    setUnauthorizedCallback(() => {
+      router.replace('/');
+    });
+  }, []);
 
   if (!fontsLoaded) return null;
 

@@ -50,6 +50,10 @@ class ConfirmPasswordResetRequest(BaseModel):
     new_password: str
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 
 # ── Auth (Login & Register) ──────────────────────────────────────────────────
 
@@ -120,8 +124,8 @@ def login(request: LoginRequest):
         auth_user = response.user
         session = response.session
 
-        # Ambil profil dari tabel users
-        profile = supabase.table("users").select("*").eq(
+        # Ambil profil dari tabel users (Gunakan supabase_admin untuk bypass RLS)
+        profile = supabase_admin.table("users").select("*").eq(
             "user_id", str(auth_user.id)
         ).maybe_single().execute()
 
@@ -147,6 +151,49 @@ def login(request: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password salah",
+        )
+
+
+@router.post("/auth/refresh")
+def refresh_token(request: RefreshRequest):
+    """
+    Refresh Supabase session using refresh_token.
+    """
+    try:
+        response = supabase.auth.refresh_session(request.refresh_token)
+        if not response.session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token tidak valid atau sudah kadaluarsa",
+            )
+        auth_user = response.user
+        session = response.session
+
+        # Ambil profil dari tabel users (Gunakan supabase_admin untuk bypass RLS)
+        profile = supabase_admin.table("users").select("*").eq(
+            "user_id", str(auth_user.id)
+        ).maybe_single().execute()
+
+        user_data = profile.data or {}
+
+        return {
+            "access_token": session.access_token,
+            "refresh_token": session.refresh_token,
+            "token_type": "bearer",
+            "expires_in": session.expires_in,
+            "user": {
+                "user_id": str(auth_user.id),
+                "email": auth_user.email,
+                "nama": user_data.get("nama"),
+                "nim": user_data.get("nim"),
+                "role": user_data.get("role", "mahasiswa"),
+            },
+        }
+    except Exception as e:
+        print(f"Refresh token error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token tidak valid atau sudah kadaluarsa",
         )
 
 # ── CB-xx: Lupa Password (OTP) ────────────────────────────────────────────────
@@ -220,6 +267,21 @@ def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
         return {"users": result.data or [], "total": len(result.data or [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mengambil daftar akun: {e}")
+
+
+@router.get("/accounts/konselor")
+def get_konselor_list(user=Depends(get_current_user)):
+    """
+    Ambil daftar pengguna yang memiliki role 'konselor' (bisa diakses mahasiswa).
+    """
+    try:
+        result = supabase_admin.table("users").select(
+            "user_id, nama, email, nim, role, created_at"
+        ).eq("role", "konselor").order("nama").execute()
+        return {"users": result.data or []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal mengambil daftar konselor: {e}")
+
 
 
 # ── CB-12: createAccount ──────────────────────────────────────────────────────
