@@ -1,27 +1,46 @@
+import os
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client
-from dotenv import load_dotenv
-import os
+
+from core.db import query
 
 load_dotenv()
 
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
+SECRET = os.getenv("JWT_SECRET", "")
+if not SECRET:
+    raise RuntimeError("JWT_SECRET wajib diisi di .env")
+ALGORITHM = "HS256"
+EXPIRES_IN = int(os.getenv("JWT_EXPIRES_MINUTES", "10080")) * 60  # 7 hari
 
 bearer_scheme = HTTPBearer()
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Verify Supabase JWT token, return user dict."""
-    token = credentials.credentials
+@dataclass
+class AuthUser:
+    id: str
+    email: str
+
+
+def create_token(user_id: str, email: str) -> str:
+    payload = {
+        "sub": str(user_id),
+        "email": email,
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_IN),
+    }
+    return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+) -> AuthUser:
     try:
-        response = supabase.auth.get_user(token)
-        if not response or not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token tidak valid atau sudah kadaluarsa",
-            )
-        return response.user
+        payload = jwt.decode(credentials.credentials, SECRET, algorithms=[ALGORITHM])
+        return AuthUser(id=payload["sub"], email=payload.get("email", ""))
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -29,36 +48,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_
         )
 
 
-def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
-):
-    """Same as get_current_user but returns None if no token provided."""
-    if credentials is None:
-        return None
-    token = credentials.credentials
-    try:
-        response = supabase.auth.get_user(token)
-        return response.user if response else None
-    except Exception:
-        return None
-
-
 def require_role(*roles: str):
-    """Dependency factory: raise 403 if user role not in allowed roles.
-    Query tabel users untuk role (lebih reliable dari JWT metadata).
-    """
-
-    def _check(user=Depends(get_current_user)):
-        # Ambil role dari tabel users (sesuai ERD)
-        try:
-            profile = supabase.table("users").select("role").eq(
-                "user_id", str(user.id)
-            ).maybe_single().execute()
-            user_role = (profile.data or {}).get("role", "mahasiswa")
-        except Exception:
-            # Fallback ke JWT metadata
-            user_role = (user.user_metadata or {}).get("role", "mahasiswa")
-
+    def _check(user: AuthUser = Depends(get_current_user)):
+        rows = query("select role from users where user_id = %s", (user.id,), user_id=user.id)
+        user_role = rows[0]["role"] if rows else "mahasiswa"
         if user_role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

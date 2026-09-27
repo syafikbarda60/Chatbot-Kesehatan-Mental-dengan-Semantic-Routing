@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: Typography.sm,
     color: Colors.textSecondary,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
 });
 

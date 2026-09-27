@@ -1,65 +1,65 @@
 // ============================================================
-// constants/theme.ts — Sanctuary Design System
+// constants/theme.ts — Sajiwa Design System
 // Based on Material 3 color scheme: primary #496175
 // ============================================================
 
 // ── Color Palette ────────────────────────────────────────────
-export const SanctuaryColors = {
-  // Core
-  background:              '#f8f9fa',
-  surface:                 '#f8f9fa',
-  surfaceBright:           '#f8f9fa',
-  surfaceDim:              '#d1dce0',
-  surfaceVariant:          '#dbe4e7',
+export const SajiwaColors = {
+  // Core (Background: FFF2F2)
+  background:              '#FFF2F2',
+  surface:                 '#FFF2F2',
+  surfaceBright:           '#FFFFFF',
+  surfaceDim:              '#F5E6E6',
+  surfaceVariant:          '#A9B5DF', // The light blue from palette
 
-  // Surface containers
-  surfaceContainerLowest:  '#ffffff',
-  surfaceContainerLow:     '#f1f4f6',
-  surfaceContainer:        '#eaeff1',
-  surfaceContainerHigh:    '#e3e9ec',
-  surfaceContainerHighest: '#dbe4e7',
+  // Surface containers (Neumorphism base)
+  surfaceContainerLowest:  '#FFF2F2',
+  surfaceContainerLow:     '#FFF2F2',
+  surfaceContainer:        '#FFF2F2',
+  surfaceContainerHigh:    '#F2E5E5',
+  surfaceContainerHighest: '#E5D8D8',
 
-  // Primary
-  primary:                 '#496175',
-  primaryDim:              '#3d5569',
-  primaryFixed:            '#cce5fd',
-  primaryFixedDim:         '#bed7ef',
-  primaryContainer:        '#cce5fd',
-  onPrimary:               '#f3f8ff',
-  onPrimaryFixed:          '#2a4255',
-  onPrimaryFixedVariant:   '#465e72',
-  onPrimaryContainer:      '#3c5468',
+  // Primary (Navy: 2D336B)
+  primary:                 '#2D336B',
+  primaryDim:              '#1E234A',
+  primaryFixed:            '#7886C7',
+  primaryFixedDim:         '#5A669A',
+  primaryContainer:        '#A9B5DF',
+  onPrimary:               '#FFF2F2',
+  onPrimaryFixed:          '#FFF2F2',
+  onPrimaryFixedVariant:   '#FFF2F2',
+  onPrimaryContainer:      '#2D336B',
 
-  // Secondary
-  secondary:               '#506268',
-  secondaryDim:            '#44565c',
-  secondaryFixed:          '#d2e6ed',
-  secondaryFixedDim:       '#c4d8df',
-  secondaryContainer:      '#d2e6ed',
-  onSecondary:             '#f0fbff',
-  onSecondaryFixed:        '#304248',
-  onSecondaryFixedVariant: '#4c5e65',
-  onSecondaryContainer:    '#43555b',
+  // Secondary (Indigo: 7886C7)
+  secondary:               '#7886C7',
+  secondaryDim:            '#5A669A',
+  secondaryFixed:          '#A9B5DF',
+  secondaryFixedDim:       '#8B98C2',
+  secondaryContainer:      '#E3E8FF',
+  onSecondary:             '#FFF2F2',
+  onSecondaryFixed:        '#2D336B',
+  onSecondaryFixedVariant: '#2D336B',
+  onSecondaryContainer:    '#2D336B',
 
-  // Tertiary
-  tertiary:                '#555f78',
-  tertiaryDim:             '#49536b',
-  tertiaryFixed:           '#d5dffd',
-  tertiaryFixedDim:        '#c7d1ef',
-  tertiaryContainer:       '#d5dffd',
-  onTertiary:              '#f9f8ff',
-  onTertiaryFixed:         '#333d55',
-  onTertiaryFixedVariant:  '#505972',
-  onTertiaryContainer:     '#465068',
+  // Tertiary (Light Blue: A9B5DF)
+  tertiary:                '#A9B5DF',
+  tertiaryDim:             '#8B98C2',
+  tertiaryFixed:           '#FFF2F2',
+  tertiaryFixedDim:        '#E3E8FF',
+  tertiaryContainer:       '#E3E8FF',
+  onTertiary:              '#2D336B',
+  onTertiaryFixed:         '#2D336B',
+  onTertiaryFixedVariant:  '#2D336B',
+  onTertiaryContainer:     '#2D336B',
 
-  // On-colors
-  onBackground:            '#2b3437',
-  onSurface:               '#2b3437',
-  onSurfaceVariant:        '#586064',
+  // On-colors (Text)
+  onBackground:            '#2D336B',
+  onSurface:               '#2D336B',
+  onSurfaceVariant:        '#5A669A', // 5.1:1 on background (was #7886C7, 3.2:1)
 
   // Outline
-  outline:                 '#737c7f',
-  outlineVariant:          '#abb3b7',
+  outline:                 '#A9B5DF',
+  outlineVariant:          '#D1D8F0',
 
   // Error
   error:                   '#9f403d',
@@ -69,62 +69,78 @@ export const SanctuaryColors = {
   onErrorContainer:        '#752121',
 
   // Inverse
-  inverseSurface:          '#0c0f10',
-  inverseOnSurface:        '#9b9d9e',
-  inversePrimary:          '#cae3fb',
+  inverseSurface:          '#2D336B',
+  inverseOnSurface:        '#FFF2F2',
+  inversePrimary:          '#A9B5DF',
 
   // Surface tint
-  surfaceTint:             '#496175',
+  surfaceTint:             '#7886C7',
 
-  // Convenience aliases (for backward compat)
-  card:                    '#ffffff',
-  cardAlt:                 '#f1f4f6',
-  border:                  '#abb3b7',
-  borderLight:             '#dbe4e7',
-  divider:                 'rgba(73,97,117,0.12)',
-  textPrimary:             '#2b3437',
-  textSecondary:           '#586064',
-  textMuted:               '#737c7f',
+  // Convenience aliases
+  card:                    '#FFF2F2',
+  cardAlt:                 '#FFF2F2',
+  border:                  '#A9B5DF',
+  borderLight:             '#E3E8FF',
+  divider:                 'rgba(169, 181, 223, 0.3)',
+  textPrimary:             '#2D336B',
+  textSecondary:           '#5A669A',
+  textMuted:               '#6E78A8', // 3.9:1, hints/timestamps only
   white:                   '#ffffff',
   black:                   '#000000',
-  overlay:                 'rgba(43,52,55,0.6)',
+  overlay:                 'rgba(45, 51, 107, 0.4)',
 
   // Tab bar
-  tabActive:               '#496175',
-  tabInactive:             '#abb3b7',
-  tabBar:                  '#ffffff',
+  tabActive:               '#2D336B',
+  tabInactive:             '#5A669A',
+  tabBar:                  '#FFF2F2',
 
-  // Stress / mood indicators
-  stressLow:               '#4D9B6F',
-  stressMid:               '#D4A843',
+  // Stress / mood indicators (keeping functional colors but adjusted slightly to blend)
+  stressLow:               '#7886C7', // Repurposed for low stress to match theme
+  stressMid:               '#8A6710', // darkened amber, readable as text
   stressHigh:              '#9f403d',
-  stressLowBg:             'rgba(77,155,111,0.12)',
+  stressLowBg:             'rgba(120, 134, 199, 0.12)',
   stressMidBg:             'rgba(212,168,67,0.12)',
   stressHighBg:            'rgba(159,64,61,0.12)',
 
-  // Gradient helpers (used as string arrays)
-  primaryGradientStart:    '#496175',
-  primaryGradientEnd:      '#3d5569',
+  // Gradient helpers
+  primaryGradientStart:    '#7886C7',
+  primaryGradientEnd:      '#2D336B',
+
+  // Neumorphism light sources (top-left light, bottom-right shade)
+  neuLight:                'rgba(255, 255, 255, 0.95)',
+  neuDark:                 'rgba(166, 128, 140, 0.32)',
 };
 
-export type SanctuaryColorKey = keyof typeof SanctuaryColors;
+// ── Neumorphic surfaces ───────────────────────────────────────
+// Uses the `boxShadow` style (RN new architecture + web). Two shadows fake the light source.
+export const Neu = {
+  raised:  `-6px -6px 14px ${SajiwaColors.neuLight}, 6px 6px 14px ${SajiwaColors.neuDark}`,
+  raisedSm:`-3px -3px 8px ${SajiwaColors.neuLight}, 3px 3px 8px ${SajiwaColors.neuDark}`,
+  inset:   `inset 4px 4px 8px ${SajiwaColors.neuDark}, inset -4px -4px 8px ${SajiwaColors.neuLight}`,
+};
+
+export type SajiwaColorKey = keyof typeof SajiwaColors;
 
 // Single theme — no more toggling
-export const Colors = SanctuaryColors;
-export type ThemeName = 'sanctuary';
-export const CurrentTheme: ThemeName = 'sanctuary';
-export const Themes = { sanctuary: SanctuaryColors };
+export const Colors = SajiwaColors;
+export type ThemeName = 'sajiwa';
+export const CurrentTheme: ThemeName = 'sajiwa';
+export const Themes = { sajiwa: SajiwaColors };
 
 // ── Typography ───────────────────────────────────────────────
 export const Typography = {
-  // Font families (loaded via _layout.tsx)
-  fontBold:         'PlusJakartaSans_800ExtraBold',
-  fontSemiBold:     'PlusJakartaSans_700Bold',
-  fontMedium:       'PlusJakartaSans_600SemiBold',
-  fontRegular:      'PlusJakartaSans_500Medium',
+  // Font family: Plus Jakarta Sans (loaded in apps/mobile/app/_layout.tsx).
+  // One humanist family, open letterforms, good legibility at small sizes.
+  fontBold:         'PlusJakartaSans_700Bold',
+  fontSemiBold:     'PlusJakartaSans_600SemiBold',
+  fontMedium:       'PlusJakartaSans_500Medium',
+  fontRegular:      'PlusJakartaSans_400Regular',
   fontLight:        'PlusJakartaSans_400Regular',
 
   // Aliases kept for backward compat
+  fontSerif:        'PlusJakartaSans_700Bold',
+  fontSerifItalic:  'PlusJakartaSans_700Bold_Italic',
+  fontPhilosopher_700Bold: 'PlusJakartaSans_800ExtraBold',
   fontHeading:      'PlusJakartaSans_800ExtraBold',
   fontHeadingSemi:  'PlusJakartaSans_700Bold',
   fontBody:         'PlusJakartaSans_400Regular',
@@ -132,7 +148,7 @@ export const Typography = {
   fontBodySemiBold: 'PlusJakartaSans_600SemiBold',
 
   // Sizes
-  xs:    11,
+  xs:    12, // floor for readable text
   sm:    13,
   base:  15,
   md:    16,
@@ -167,9 +183,17 @@ export const BorderRadius = {
 };
 
 // ── Stress Level Helpers ──────────────────────────────────────
+// Supportive labels - non-clinical, actionable language
 export const StressLevel = {
   getColor:   (l: number) => (l <= 3 ? Colors.stressLow  : l <= 6 ? Colors.stressMid  : Colors.stressHigh),
   getBgColor: (l: number) => (l <= 3 ? Colors.stressLowBg : l <= 6 ? Colors.stressMidBg : Colors.stressHighBg),
-  getLabel:   (l: number) => (l <= 3 ? 'Baik' : l <= 6 ? 'Perlu Perhatian' : l <= 8 ? 'Cukup Berat' : 'Butuh Bantuan'),
+  getLabel:   (l: number) => (l <= 3 ? 'Kondisi Baik' : l <= 6 ? 'Butuh Perhatian' : l <= 8 ? 'Cukup Berat' : 'Butuh Dukungan'),
   getEmoji:   (l: number) => (l <= 3 ? '🌿' : l <= 6 ? '🌤️' : l <= 8 ? '⛈️' : '🆘'),
+  
+  // New supportive variants for chat room
+  getSupportiveLabel: (l: number) => (l <= 3 ? 'Kondisi Baik' : l <= 6 ? 'Butuh Perhatian Ekstra' : 'Butuh Dukungan Sekarang'),
+  getSupportiveMessage: (l: number) => 
+    l <= 3 ? 'Kamu terlihat cukup tenang hari ini. Lanjutkan cerita kalau mau.'
+    : l <= 6 ? 'Sepertinya hari ini agak berat. Itu wajar kok. Mau coba latihan napas?'
+    : 'Kamu tidak sendirian. Ada yang bisa bantu. Tekan tombol di bawah atau lanjut cerita.',
 };

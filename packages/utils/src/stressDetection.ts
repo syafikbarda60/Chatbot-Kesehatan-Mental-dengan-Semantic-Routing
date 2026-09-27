@@ -1,9 +1,17 @@
 // utils/stressDetection.ts
 // Pure function — no side effects. Takes message list, returns 0–10 stress score.
 
-import type { Message } from '../components/chat/ChatBubble';
+export type MessageSender = 'user' | 'ai';
+export interface Message {
+  id: string;
+  text: string;
+  sender: MessageSender;
+  timestamp: Date;
+  /** Companion expression shown next to AI messages. */
+  expression?: import('./characterReaction').Expression;
+}
 
-const KEYWORDS = {
+export const KEYWORDS = {
   high: [
     'putus asa', 'tidak ada harapan', 'mau mati', 'ingin mati', 'bunuh diri',
     'tidak kuat lagi', 'menyerah', 'hancur', 'sangat tertekan', 'panik', 'krisis',

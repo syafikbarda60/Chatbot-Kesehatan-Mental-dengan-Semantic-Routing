@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Animated, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { SanctuaryColors } from '@prototype/ui-shared';
+import { SajiwaColors } from '@prototype/ui-shared';
 
 interface Props {
   onAnimationComplete: () => void;
@@ -55,11 +55,10 @@ export function AnimatedSplashScreen({ onAnimationComplete }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: SanctuaryColors.background,
+    backgroundColor: SajiwaColors.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 9999,
-    elevation: 9999,
   },
   logo: {
     width: 160,

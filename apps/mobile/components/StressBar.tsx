@@ -13,7 +13,7 @@ export const StressBar: React.FC<Props> = ({ level }) => {
   }, [clamped]);
 
   const color = StressLevel.getColor(clamped);
-  const label = StressLevel.getLabel(clamped);
+  const label = StressLevel.getSupportiveLabel(clamped);
   const emoji = StressLevel.getEmoji(clamped);
   const width = anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
@@ -21,7 +21,7 @@ export const StressBar: React.FC<Props> = ({ level }) => {
     <View style={styles.wrap}>
       <View style={styles.row}>
         <Text style={styles.emoji}>{emoji}</Text>
-        <Text style={styles.label}> Status</Text>
+        <Text style={styles.label}> Kondisi Mental</Text>
         <View style={{ flex: 1 }} />
         <View style={[styles.badge, { backgroundColor: StressLevel.getBgColor(clamped) }]}>
           <View style={[styles.dot, { backgroundColor: color }]} />
@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.md, gap: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   emoji: { fontSize: 14 },
-  label: { fontSize: Typography.xs, color: Colors.textMuted, fontFamily: 'Inter_500Medium' },
+  label: { fontSize: Typography.xs, color: Colors.textMuted, fontFamily: 'PlusJakartaSans_500Medium' },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dot: { width: 5, height: 5, borderRadius: 3 },
-  badgeText: { fontSize: Typography.xs, fontFamily: 'Inter_600SemiBold' },
+  badgeText: { fontSize: Typography.xs, fontFamily: 'PlusJakartaSans_600SemiBold' },
   track: {
     height: 3,
     backgroundColor: Colors.border,

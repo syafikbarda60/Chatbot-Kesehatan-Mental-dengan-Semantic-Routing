@@ -1,77 +1,49 @@
 from fastapi import APIRouter, Depends, HTTPException
-from supabase import create_client
-from auth import require_role
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
-import os
 
-load_dotenv()
+from auth import require_role
+from core.db import query
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
-
-
-# ── CB-10: getDashboardData ───────────────────────────────────────────────────
 
 @router.get("/data")
 def get_dashboard_data(operator=Depends(require_role("konselor", "admin", "pemangku_jabatan"))):
-    """
-    CB-10 — Query agregasi data hasil asesmen mahasiswa untuk ditampilkan
-    pada dashboard pemantauan Operator/Konselor.
-    """
     try:
-        # Total asesmen & distribusi severity (sesuai ERD: severity bukan risk_level)
-        all_assessments = supabase.table("assessments").select(
-            "assessment_id, user_id, score, severity, taken_at"
-        ).execute()
-
-        assessments = all_assessments.data or []
-        total = len(assessments)
+        uid = operator.id
 
         distribution = {"minimal": 0, "mild": 0, "moderate": 0, "severe": 0}
-        for a in assessments:
-            sev = a.get("severity", "minimal")
-            if sev in distribution:
-                distribution[sev] += 1
+        for row in query("select severity, count(*) as c from assessments group by severity", user_id=uid):
+            if row["severity"] in distribution:
+                distribution[row["severity"]] = row["c"]
+        total = sum(distribution.values())
 
-        # Trend 7 hari terakhir
-        seven_days_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
-        recent = supabase.table("assessments").select(
-            "taken_at, severity"
-        ).gte("taken_at", seven_days_ago).execute()
+        weekly = query(
+            "select taken_at::date as date, count(*) as count from assessments "
+            "where taken_at >= now() - interval '7 days' group by 1 order by 1",
+            user_id=uid,
+        )
 
-        trend: dict = {}
-        for row in (recent.data or []):
-            day = row["taken_at"][:10]  # YYYY-MM-DD
-            trend[day] = trend.get(day, 0) + 1
+        recent_severe = query(
+            "select assessment_id, user_id, score, taken_at from assessments "
+            "where severity = 'severe' order by taken_at desc limit 10",
+            user_id=uid,
+        )
 
-        # Severe terbaru (max 10) — sesuai ERD: severity bukan risk_level
-        severe_recent = supabase.table("assessments").select(
-            "assessment_id, user_id, score, taken_at"
-        ).eq("severity", "severe").order("taken_at", desc=True).limit(10).execute()
+        guardrail_count = query("select count(*) as c from guardrail_logs", user_id=uid)[0]["c"]
 
-        # Guardrail logs count
-        guardrail_result = supabase.table("guardrail_logs").select(
-            "log_id", count="exact"
-        ).execute()
-        guardrail_count = guardrail_result.count or 0
-
-        # Booking konsultasi pending
-        pending_bookings = supabase.table("booking_konsultasi").select(
-            "booking_id, user_id, created_at"
-        ).eq("status", "menunggu").order("created_at", desc=True).limit(10).execute()
+        pending_bookings = query(
+            "select booking_id, user_id, created_at from booking_konsultasi "
+            "where status = 'menunggu' order by created_at desc limit 10",
+            user_id=uid,
+        )
 
         return {
             "total_assessments": total,
             "severity_distribution": distribution,
-            "weekly_trend": [
-                {"date": k, "count": v}
-                for k, v in sorted(trend.items())
-            ],
-            "recent_severe": severe_recent.data or [],
+            "weekly_trend": [{"date": r["date"], "count": r["count"]} for r in weekly],
+            "recent_severe": recent_severe,
             "guardrail_trigger_count": guardrail_count,
-            "pending_bookings": pending_bookings.data or [],
+            "pending_bookings": pending_bookings,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mengambil data dashboard: {e}")

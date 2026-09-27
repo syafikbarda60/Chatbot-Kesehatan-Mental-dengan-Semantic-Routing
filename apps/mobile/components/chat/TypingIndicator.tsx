@@ -3,7 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, Spacing } from '@prototype/ui-shared';
-import { useTheme } from '@prototype/ui-shared';
+import { useTheme, Neu } from '@prototype/ui-shared';
 
 const DOT = 7;
 
@@ -39,14 +39,11 @@ export const TypingIndicator: React.FC = () => {
   const { colors } = useTheme();
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.avatar, { backgroundColor: colors.primaryContainer + '50' }]}>
-        <Ionicons name="leaf-outline" size={14} color={colors.primary} />
-      </View>
-      <View style={[styles.bubble, { backgroundColor: colors.surfaceContainerLow }]}>
-        <Dot delay={0}   color={colors.primary + '60'} />
-        <Dot delay={140} color={colors.primary + '50'} />
-        <Dot delay={280} color={colors.primary + '40'} />
+    <View style={styles.container} accessible accessibilityLabel="Sajiwa sedang mengetik">
+      <View style={[styles.bubble, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}>
+        <Dot delay={0}   color={colors.primary} />
+        <Dot delay={140} color={colors.primary} />
+        <Dot delay={280} color={colors.primary} />
       </View>
     </View>
   );
@@ -59,10 +56,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     paddingHorizontal: Spacing.base,
     gap: Spacing.sm,
-  },
-  avatar: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
   },
   bubble: {
     flexDirection: 'row',

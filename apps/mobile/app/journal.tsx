@@ -1,198 +1,108 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@prototype/ui-shared';
-import { Spacing, BorderRadius } from '@prototype/ui-shared';
+import { useTheme, Neu } from '@prototype/ui-shared';
 import { apiSaveJournal } from '@prototype/api-client';
+import type { Expression } from '@prototype/utils';
+import { NeuView, Button, ScreenHeader, goBack, useToast } from '../components/ui';
+import { Companion } from '../components/chat';
+import { MoodPicker } from '../components/MoodPicker';
+import { Mood, MOOD_COMPANION, todayPrompt } from '../constants/moods';
 
-const MOODS = [
-  { id: 'Calm', label: 'Calm', icon: 'water-outline' },
-  { id: 'Anxious', label: 'Anxious', icon: 'pulse-outline' },
-  { id: 'Focused', label: 'Focused', icon: 'locate-outline' },
-  { id: 'Tired', label: 'Tired', icon: 'moon-outline' },
-];
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const toast = useToast();
 
   const [content, setContent] = useState('');
-  const [mood, setMood] = useState<string | null>(null);
+  const [mood, setMood] = useState<Mood | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const formatDate = () =>
-    new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase();
+  const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const prompt = todayPrompt();
+
+  // Companion: greets with today's prompt, then follows the chosen mood; thumbs-up once saved
+  const companion: { face: Expression; line: string } = saved
+    ? { face: 'jempol', line: 'Tersimpan! Terima kasih sudah menulis hari ini.' }
+    : mood
+      ? { face: MOOD_COMPANION[mood].face, line: MOOD_COMPANION[mood].writing }
+      : { face: content.trim() ? 'senang' : 'menyapa', line: content.trim() ? 'Aku dengerin. Lanjutkan saja.' : prompt };
 
   const handleSave = async () => {
-    if (!content.trim()) {
-      Alert.alert('Empty Note', 'Please write something before saving.');
-      return;
-    }
-
     setIsLoading(true);
     try {
-      await apiSaveJournal({
-        content: content.trim(),
-        mood: mood as any,
-      });
-      router.back();
+      await apiSaveJournal({ content: content.trim(), mood: mood as any });
+      setSaved(true);
+      toast.show('Jurnal tersimpan. Terima kasih sudah menulis hari ini.');
+      setTimeout(goBack, 900); // let the thumbs-up play before leaving
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save journal');
+      toast.show(`Jurnal belum tersimpan: ${e.message || 'coba lagi sebentar.'}`, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Never silently throw away what the user wrote
+  const handleDiscard = () => {
+    if (!content.trim()) return goBack();
+    Alert.alert('Buang tulisan ini?', 'Tulisanmu belum disimpan dan akan hilang.', [
+      { text: 'Lanjut menulis', style: 'cancel' },
+      { text: 'Buang', style: 'destructive', onPress: goBack },
+    ]);
+  };
+
   return (
-    <View style={[s.root, { backgroundColor: colors.background }]}>
-      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <View style={s.headerInner}>
-          <TouchableOpacity onPress={() => router.back()} style={s.iconBtn}>
-            <Ionicons name="menu-outline" size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={[s.headerTitle, { color: colors.onSurface }]}>Sanctuary</Text>
-          <View style={s.avatar}>
-            <Ionicons name="person" size={18} color={colors.onSurfaceVariant} />
+    <KeyboardAvoidingView style={[s.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16 }]} keyboardShouldPersistTaps="handled">
+        <ScreenHeader back title="Tulis jurnal" subtitle={today} />
+
+        {/* Companion keeps you company while writing */}
+        <View style={s.companionRow}>
+          <View style={[s.bubble, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}>
+            <Text style={[s.bubbleText, { color: colors.onSurface }]} accessibilityLiveRegion="polite">
+              {companion.line}
+            </Text>
           </View>
-        </View>
-      </View>
-
-      <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={[s.date, { color: colors.outline }]}>{formatDate()}</Text>
-        <Text style={[s.title, { color: colors.onSurface }]}>Writing Space</Text>
-
-        <Text style={[s.label, { color: colors.onSurfaceVariant }]}>I am feeling...</Text>
-        <View style={s.moodRow}>
-          {MOODS.map((m) => {
-            const active = mood === m.id;
-            return (
-              <TouchableOpacity
-                key={m.id}
-                style={[
-                  s.moodChip,
-                  { backgroundColor: colors.surfaceContainerLow },
-                  active && { backgroundColor: colors.primaryContainer, borderColor: colors.primary, borderWidth: 1 }
-                ]}
-                onPress={() => setMood(m.id)}
-              >
-                <Ionicons name={m.icon as any} size={16} color={active ? colors.primary : colors.onSurfaceVariant} />
-                <Text style={[s.moodText, { color: active ? colors.primary : colors.onSurfaceVariant }]}>{m.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+          <Companion expression={companion.face} size={104} />
         </View>
 
-        <TextInput
-          style={[s.input, { color: colors.onSurface }]}
-          placeholder="How are you really feeling?"
-          placeholderTextColor={colors.outline + '70'}
-          multiline
-          value={content}
-          onChangeText={setContent}
-          textAlignVertical="top"
-        />
+        <Text style={[s.label, { color: colors.onSurface }]}>Aku merasa…</Text>
+        <MoodPicker value={mood} onChange={setMood} />
+
+        <Text style={[s.label, { color: colors.onSurface, marginTop: 28 }]}>Ceritakan</Text>
+        <NeuView inset radius={22}>
+          <TextInput
+            style={[s.input, { color: colors.onSurface }]}
+            placeholder="Tulis dengan bebas, tidak ada yang menilai di sini."
+            placeholderTextColor={colors.textMuted}
+            accessibilityLabel="Isi jurnal"
+            multiline
+            value={content}
+            onChangeText={setContent}
+            textAlignVertical="top"
+          />
+        </NeuView>
+        <Text style={[s.counter, { color: colors.textMuted }]}>{content.trim().length} karakter</Text>
       </ScrollView>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={[s.footer, { paddingBottom: insets.bottom + 16 }]}
-      >
-        <View style={s.footerInner}>
-          <TouchableOpacity style={s.footerIconBtn}>
-            <Ionicons name="text-outline" size={20} color={colors.outline} />
-          </TouchableOpacity>
-          <TouchableOpacity style={s.footerIconBtn}>
-            <Ionicons name="image-outline" size={20} color={colors.outline} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={() => router.back()} style={s.discardBtn}>
-            <Text style={[s.discardText, { color: colors.onSurfaceVariant }]}>Discard</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.doneBtn, { backgroundColor: '#496175' }]}
-            onPress={handleSave}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={s.doneText}>Done</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <Button label="Batal" variant="ghost" onPress={handleDiscard} style={{ flex: 1 }} />
+        <Button label="Simpan" onPress={handleSave} loading={isLoading} disabled={!content.trim() || saved} style={{ flex: 2 }} />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingBottom: 16 },
-  headerInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { fontSize: 20, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.5 },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', alignItems: 'center', justifyContent: 'center' },
-
-  scroll: { paddingHorizontal: 24, paddingTop: 24 },
-  date: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.5, marginBottom: 8 },
-  title: { fontSize: 36, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -1, marginBottom: 32 },
-
-  label: { fontSize: 16, fontFamily: 'PlusJakartaSans_500Medium', marginBottom: 16 },
-  moodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 40 },
-  moodChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 8,
-  },
-  moodText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
-
-  input: {
-    fontSize: 24,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    minHeight: 300,
-    lineHeight: 32,
-  },
-
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
-    paddingTop: 12,
-  },
-  footerInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 16,
-  },
-  footerIconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  discardBtn: { paddingHorizontal: 16, paddingVertical: 12 },
-  discardText: { fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold' },
-  doneBtn: {
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  doneText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
+  scroll: { paddingHorizontal: 20, paddingBottom: 24 },
+  companionRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 24 },
+  bubble: { flex: 1, padding: 14, borderRadius: 18, borderBottomRightRadius: 6 },
+  bubbleText: { fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 22 },
+  label: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 12 },
+  input: { minHeight: 240, padding: 18, fontSize: 17, lineHeight: 28, fontFamily: 'PlusJakartaSans_400Regular' },
+  counter: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'right', marginTop: 8 },
+  footer: { flexDirection: 'row', gap: 12, paddingHorizontal: 20, paddingTop: 12 },
 });
-
-
-

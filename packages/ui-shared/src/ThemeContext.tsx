@@ -1,23 +1,23 @@
 import React, { createContext, useContext, useState } from 'react';
-import { SanctuaryColors } from './theme';
+import { SajiwaColors } from './theme';
 
 interface ThemeContextType {
-  colors: typeof SanctuaryColors;
-  themeName: 'sanctuary';
+  colors: typeof SajiwaColors;
+  themeName: 'sajiwa';
 }
 
 const defaultCtx: ThemeContextType = {
-  colors: SanctuaryColors,
-  themeName: 'sanctuary',
+  colors: SajiwaColors,
+  themeName: 'sajiwa',
 };
 
 export const ThemeContext = createContext<ThemeContextType>(defaultCtx);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [colors] = useState(SanctuaryColors);
+  const [colors] = useState(SajiwaColors);
 
   return (
-    <ThemeContext.Provider value={{ colors, themeName: 'sanctuary' }}>
+    <ThemeContext.Provider value={{ colors, themeName: 'sajiwa' }}>
       {children}
     </ThemeContext.Provider>
   );

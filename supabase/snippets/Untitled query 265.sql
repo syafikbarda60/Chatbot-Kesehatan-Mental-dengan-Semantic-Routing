@@ -1,5 +1,5 @@
 -- =========================================================
--- Sanctuary — Complete Supabase SQL Schema
+-- Sajiwa — Complete Supabase SQL Schema
 -- Jalankan di Supabase Dashboard → SQL Editor
 -- =========================================================
 

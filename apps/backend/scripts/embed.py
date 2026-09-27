@@ -1,23 +1,27 @@
-import os, ollama
+import os, sys, ollama
 from docx import Document
 from docx.oxml.ns import qn
 from dotenv import load_dotenv
-from supabase import create_client
+from psycopg.types.json import Jsonb
+
+# Run directly (`python scripts/embed.py`) from apps/backend: put the backend root on
+# sys.path so `core` / `services` import (same shim as test_rag_performance.py).
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.db import query
+from services.chatbot.rag import EMBED_MODEL, DOCUMENT_PREFIX
 
 load_dotenv()
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
 
 def extract_text_docx(filepath):
     doc = Document(filepath)
     full_text = []
 
     for block in doc.element.body:
-        # Jika block adalah paragraf, gabungkan semua teks di dalamnya
         if block.tag.endswith('}p'):
             text = "".join(node.text or "" for node in block.iter() if node.tag.endswith('}t'))
             if text.strip():
                 full_text.append(text.strip())
-        # Jika block adalah tabel, gabungkan teks dari setiap sel dengan pemisah "|"
         elif block.tag.endswith('}tbl'):
             for row in block.iter(qn('w:tr')):
                 cells = []
@@ -45,20 +49,18 @@ def embed_and_upload(filepath):
 
     for i, chunk in enumerate(chunks):
         res = ollama.embed(
-            model="nomic-embed-text-v2-moe",
-            input=f"passage: {chunk}"
+            model=EMBED_MODEL,
+            input=f"{DOCUMENT_PREFIX}{chunk}"
         )
         embedding = res["embeddings"][0]
 
-        supabase.table("documents").insert({
-            "content": chunk,
-            "embedding": embedding,
-            "metadata": {"source": filename, "chunk": i}
-        }).execute()
+        query(
+            "insert into documents (content, embedding, metadata) values (%s, %s::vector, %s)",
+            (chunk, str(embedding), Jsonb({"source": filename, "chunk": i})),
+        )
 
         print(f"[{filename}] chunk {i+1}/{len(chunks)}")
 
-# Run semua .docx di folder docs
 for filename in os.listdir("docs"):
     if filename.endswith(".docx"):
         embed_and_upload(f"docs/{filename}")

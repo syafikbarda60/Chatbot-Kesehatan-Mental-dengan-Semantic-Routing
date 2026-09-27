@@ -1,4 +1,4 @@
-# Sanctuary 🌿
+# Sajiwa 🌿
 
 > An AI-powered mental health support system for students and counselors.
 
@@ -40,7 +40,7 @@
 - **`apps/dashboard`**: Next.js web application.
 - **`apps/backend`**: FastAPI (Python 3.12) services.
 - **`packages/api-client`**: Shared TypeScript SDK for API communication.
-- **`packages/ui-shared`**: Shared hooks, context, and Sanctuary Design System.
+- **`packages/ui-shared`**: Shared hooks, context, and Sajiwa Design System.
 - **`packages/utils`**: Common logic, stress detection, and response parsers.
 
 ### Backend & AI
@@ -97,13 +97,13 @@ npm install
 ```bash
 cd apps/backend
 venv\Scripts\activate
-uvicorn api:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 ### Start Mobile App
 ```bash
 cd apps/mobile
-npx expo start
+npm run web
 ```
 
 ### Start Dashboard

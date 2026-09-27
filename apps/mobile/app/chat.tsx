@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,20 +11,25 @@ import {
   Keyboard,
   Animated,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { NeuView } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { useChat } from '../hooks/useChat';
-import { ChatBubble, TypingIndicator, StressBar, QuickReply, AlertModal } from '../components/chat';
-import { useTheme } from '@prototype/ui-shared';
+import { ChatBubble, TypingIndicator, QuickReply, AlertModal, Companion } from '../components/chat';
+import { DayDivider, OpeningPrompts, SupportNote } from '../components/chat/ConversationExtras';
+import { EXPRESSION_STATUS, type Expression } from '@prototype/utils';
+import { useTheme, Neu } from '@prototype/ui-shared';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const listRef = useRef<FlatList>(null);
   const { colors } = useTheme();
+
+  const params = useLocalSearchParams();
+  const initialSessionId = params.sessionId as string | undefined;
 
   const {
     messages,
@@ -35,126 +40,186 @@ export default function ChatScreen() {
     quickReplies, showQuickReplies,
     sendMessage,
     sendBtnScale,
-  } = useChat();
+    isLoadingHistory,
+    setShowAlert,
+    setAlertTriggered,
+    expression,
+  } = useChat(initialSessionId);
 
   useEffect(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   }, [messages, isTyping]);
 
   const canSend = inputText.trim().length > 0;
+  const hasUserMessage = messages.some((m) => m.sender === 'user');
+
+  // Support note lives inside the thread and only appears when the conversation turns heavy.
+  // 0 = fine, 1 = heavy, 2 = very heavy. Dismissing hides it until the tier rises again.
+  const tier = stressLevel >= 7 ? 2 : stressLevel >= 4 ? 1 : 0;
+  const [dismissedTier, setDismissedTier] = useState(0);
+  const showNote = tier > dismissedTier && hasUserMessage && !isTyping;
+
+  const firstDate = messages[0]?.timestamp;
+  const dayLabel = !firstDate || new Date(firstDate).toDateString() === new Date().toDateString()
+    ? 'Hari ini'
+    : new Date(firstDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
+  // AI typing > user typing (attentive) > last reaction
+  const liveExpression: Expression = isTyping ? 'berpikir' : canSend && expression !== 'tenang' ? 'senang' : expression;
 
   return (
     <KeyboardAvoidingView
-      style={[s.container, { backgroundColor: colors.background }]}
+      style={[s.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
-      {/* ── Glass Header ── */}
+      {/* ── Header: flows in document order, not absolute ── */}
       <View
         style={[
           s.header,
           {
             paddingTop: insets.top + Spacing.sm,
-            backgroundColor: colors.background + 'D0',
-            borderBottomColor: colors.outlineVariant + '30',
-          }
+            backgroundColor: colors.background,
+          },
         ]}
       >
-        {/* Nav row */}
-        <View style={s.navRow}>
-          <TouchableOpacity
-            style={[s.backBtn, { backgroundColor: colors.surfaceContainerLow }]}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={18} color={colors.onSurface} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
+          accessibilityRole="button"
+          accessibilityLabel="Kembali"
+          onPress={() => {
+            if (router.canGoBack()) router.back();
+            else router.replace('/home');
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={20} color={colors.onSurface} />
+        </TouchableOpacity>
 
-          <View style={s.navCenter}>
-            <View style={s.navLogoRow}>
-              <LinearGradient
-                colors={[colors.primary, colors.primaryDim]}
-                style={s.navAvatar}
-              >
-                <Ionicons name="leaf-outline" size={14} color="#fff" />
-              </LinearGradient>
-              <Text style={[s.navBrand, { color: colors.onSurface }]}>Sanctuary</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity>
-            <Ionicons name="settings-outline" size={20} color={colors.onSurfaceVariant} />
-          </TouchableOpacity>
+        <View style={s.navCenter} accessibilityLiveRegion="polite">
+          <Text style={[s.navBrand, { color: colors.onSurface }]}>Sajiwa</Text>
+          <Text style={[s.navStatus, { color: colors.onSurfaceVariant }]}>{EXPRESSION_STATUS[liveExpression]}</Text>
         </View>
 
-        {/* Conversation title section */}
-        <View style={s.titleSection}>
-          <Text style={[s.convTitle, { color: colors.onSurface }]}>Dialogue with Sanctuary AI</Text>
-          <Text style={[s.convSub, { color: colors.onSurfaceVariant }]}>
-            Ruang yang tenang untuk merefleksikan pikiran dan perasaanmu.
-          </Text>
-        </View>
+        {/* Always-visible path to human help */}
+        <TouchableOpacity
+          style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
+          onPress={() => router.push('/hotline')}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Hotline darurat"
+        >
+          <Ionicons name="call-outline" size={20} color={colors.stressHigh} />
+        </TouchableOpacity>
       </View>
 
-      {/* ── Stress Bar ── */}
-      <StressBar level={stressLevel} />
-
       {/* ── Message List ── */}
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(m) => m.id}
-        renderItem={({ item, index }) => <ChatBubble message={item} index={index} />}
-        contentContainerStyle={s.msgList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyState />}
-        ListFooterComponent={isTyping ? <TypingIndicator /> : null}
-      />
-
-      {/* ── Quick Replies ── */}
-      {showQuickReplies && messages.length < 16 && (
-        <QuickReply
-          options={quickReplies}
-          onSelect={(t) => { sendMessage(t); Keyboard.dismiss(); }}
+      {isLoadingHistory ? (
+        <LoadingState color={colors.onSurfaceVariant} />
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item, index }) => {
+            const next = messages[index + 1];
+            // A group ends when the sender changes or the next message comes 5+ minutes later
+            const endOfGroup =
+              !next || next.sender !== item.sender ||
+              new Date(next.timestamp).getTime() - new Date(item.timestamp).getTime() > 5 * 60 * 1000;
+            return <ChatBubble message={item} endOfGroup={endOfGroup} />;
+          }}
+          contentContainerStyle={s.msgList}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={messages.length ? <DayDivider label={dayLabel} /> : null}
+          ListEmptyComponent={<EmptyState />}
+          ListFooterComponent={
+            isTyping ? (
+              <TypingIndicator />
+            ) : (
+              <>
+                {!hasUserMessage && messages.length > 0 && (
+                  <OpeningPrompts onPick={(t) => { sendMessage(t); Keyboard.dismiss(); }} />
+                )}
+                {showNote && (
+                  <SupportNote
+                    heavy={tier === 2}
+                    onPrimary={() => {
+                      if (tier === 2) { setShowAlert(true); setAlertTriggered(true); }
+                      else router.push('/journal');
+                    }}
+                    onDismiss={() => setDismissedTier(tier)}
+                  />
+                )}
+              </>
+            )
+          }
         />
       )}
 
-      {/* ── Input Bar ── */}
+      {/* ── Bottom: Quick Replies + Input Bar (fused, no gap) ── */}
       <View
         style={[
-          s.inputBar,
+          s.bottomContainer,
           {
-            paddingBottom: insets.bottom + 12,
-            backgroundColor: colors.background + 'F2',
-            borderTopColor: colors.outlineVariant + '20',
-          }
+            paddingBottom: insets.bottom + Spacing.sm,
+            backgroundColor: colors.background,
+            /* borderTopColor removed for neumorphism */
+          },
         ]}
       >
-        <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
-          <TextInput
-            style={[s.textInput, { color: colors.onSurface }]}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ceritakan perasaanmu..."
-            placeholderTextColor={colors.outline + '70'}
-            multiline
-            maxLength={500}
-          />
-        </View>
+        {/* Companion sits beside the composer: messages above keep their full width */}
+        <Companion expression={liveExpression} />
 
-        <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
-          <TouchableOpacity
-            onPress={() => sendMessage(inputText)}
-            disabled={!canSend}
-            activeOpacity={0.8}
-            style={s.sendWrap}
+        <View style={s.composer}>
+        {/* Suggestions only once the user is in a heavy moment; openers cover the fresh start */}
+        {showQuickReplies && hasUserMessage && tier >= 1 && !showNote && (
+          <QuickReply
+            options={quickReplies}
+            onSelect={(t) => { sendMessage(t); Keyboard.dismiss(); }}
+          />
+        )}
+
+        <View style={s.inputRow}>
+          <NeuView
+            inset
+            radius={24}
+            style={s.inputPill}
           >
-            <LinearGradient
-              colors={canSend ? [colors.primary, colors.primaryDim] : [colors.surfaceContainerHigh, colors.surfaceContainerHigh]}
-              style={s.sendBtn}
+            <TextInput
+              accessibilityLabel="Tulis pesan"
+              style={[s.textInput, { color: colors.onSurface }]}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Tulis sesuatu..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              maxLength={500}
+            />
+          </NeuView>
+
+          <Animated.View style={{ transform: [{ scale: sendBtnScale }] }}>
+            <TouchableOpacity
+              onPress={() => sendMessage(inputText)}
+              disabled={!canSend}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Kirim pesan"
+              accessibilityState={{ disabled: !canSend }}
             >
-              <Ionicons name="send" size={16} color={canSend ? '#fff' : colors.onSurfaceVariant} />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+              <View
+                style={[
+                  s.sendBtn,
+                  canSend
+                    ? { backgroundColor: colors.primary, boxShadow: Neu.raised }
+                    : { backgroundColor: colors.background, boxShadow: Neu.raisedSm },
+                ]}
+              >
+                <Ionicons name="arrow-up" size={20} color={canSend ? colors.onPrimary : colors.textMuted} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+        </View>
       </View>
 
       <AlertModal
@@ -167,85 +232,91 @@ export default function ChatScreen() {
   );
 }
 
-/* ── Empty state ── */
+/* ── Loading skeleton ── */
+const LoadingState: React.FC<{ color: string }> = ({ color }) => (
+  <View style={s.centered}>
+    <Text style={[s.loadingTxt, { color }]}>Memuat riwayat...</Text>
+  </View>
+);
+
+/* ── Empty state: editorial, left-aligned, generous whitespace ── */
 const EmptyState: React.FC = () => {
   const { colors } = useTheme();
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(16)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, delay: 100, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
   return (
-    <View style={s.empty}>
-      <View style={[s.emptyIcon, { backgroundColor: colors.primaryContainer + '50' }]}>
-        <Ionicons name="chatbubble-ellipses-outline" size={32} color={colors.primary} />
-      </View>
-      <Text style={[s.emptyTitle, { color: colors.onSurface }]}>Selamat datang di Sanctuary</Text>
-      <Text style={[s.emptySub, { color: colors.onSurfaceVariant }]}>
-        Ceritakan apapun — AI siap mendengarkan dengan penuh empati.
+    <Animated.View
+      style={[
+        s.empty,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+      ]}
+    >
+      <Text style={[s.emptyTitle, { color: colors.onSurface }]}>
+        Ruang Refleksimu
       </Text>
-    </View>
+      <Text style={[s.emptySub, { color: colors.onSurfaceVariant }]}>
+        Ceritakan apapun. Sajiwa mendengarkan dengan penuh empati, tanpa penghakiman.
+      </Text>
+    </Animated.View>
   );
 };
 
-/* ── Styles ── */
 const s = StyleSheet.create({
-  container: { flex: 1 },
+  root: { flex: 1 },
 
-  // Header
+  /* Header — normal document flow */
   header: {
-    borderBottomWidth: 1,
-  },
-  navRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    paddingBottom: 12,
-    gap: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
+  iconBtn: {
+    width: 44, height: 44,
+    borderRadius: 22,
     alignItems: 'center', justifyContent: 'center',
   },
-  navCenter: { flex: 1, alignItems: 'center' },
-  navLogoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  navAvatar: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
+  navCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
-  navBrand: { fontSize: 16, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.3 },
-
-  // Conversation title
-  titleSection: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: 4,
-    paddingBottom: 20,
-  },
-  convTitle: {
-    fontSize: 24,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
-    letterSpacing: -0.6,
-    marginBottom: 4,
-  },
-  convSub: {
-    fontSize: 13,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    lineHeight: 20,
-  },
-
-  // Messages
+  navBrand: { fontSize: 17, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.3 },
+  navStatus: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
+  /* Message list */
   msgList: {
-    paddingVertical: 20,
+    paddingVertical: Spacing.sm,
     flexGrow: 1,
   },
 
-  // Input bar
-  inputBar: {
+  /* Bottom container: chips + input, no gap between them */
+  bottomContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: Spacing.base,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    gap: Spacing.sm,
+    paddingTop: Spacing.xs,
+    paddingLeft: Spacing.xs,
   },
-  inputWrap: {
+  composer: { flex: 1, minWidth: 0 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingLeft: Spacing.xs,
+    paddingRight: Spacing.base,
+    paddingTop: Spacing.sm,
+    gap: Spacing.md,
+  },
+  inputPill: {
     flex: 1,
-    borderRadius: 20,
+    minHeight: 48,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
     maxHeight: 120,
@@ -257,44 +328,37 @@ const s = StyleSheet.create({
     maxHeight: 100,
     padding: 0, margin: 0,
   },
-  sendWrap: {
-    width: 48, height: 48, borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#496175',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
   sendBtn: {
     width: 48, height: 48,
+    borderRadius: 24,
     alignItems: 'center', justifyContent: 'center',
+    
   },
 
-  // Empty
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    paddingTop: 40,
-    gap: 12,
-  },
-  emptyIcon: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 8,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: 'PlusJakartaSans_700Bold',
-    textAlign: 'center',
-  },
-  emptySub: {
+  /* Loading */
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingTxt: {
     fontSize: 14,
     fontFamily: 'PlusJakartaSans_400Regular',
-    textAlign: 'center',
-    lineHeight: 22,
+    letterSpacing: 0.5,
+  },
+
+  /* Empty state — left-aligned editorial */
+  empty: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxl,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  emptyTitle: {
+    fontSize: 28, fontFamily: 'PlusJakartaSans_800ExtraBold',
+    letterSpacing: -0.8,
+    lineHeight: 34,
+  },
+  emptySub: {
+    fontSize: 15,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    lineHeight: 24,
+    maxWidth: '88%',
   },
 });
-

@@ -71,7 +71,7 @@ export default function LoginScreen() {
       <View style={s.navbar}>
         <View style={s.navLeft}>
           <Image source={logoImg} style={s.navLogo} resizeMode="contain" />
-          <Text style={s.navTitle}>Sanctuary</Text>
+          <Text style={s.navTitle}>Sajiwa</Text>
         </View>
       </View>
 
@@ -88,7 +88,7 @@ export default function LoginScreen() {
               <MaterialIcons name="mail-outline" size={20} color={C.outline} style={{ marginRight: 12 }} />
               <TextInput
                 style={s.input}
-                placeholder="admin@sanctuary.com"
+                placeholder="admin@sajiwa.com"
                 placeholderTextColor={C.outline + '80'}
                 keyboardType="email-address"
                 autoCapitalize="none"

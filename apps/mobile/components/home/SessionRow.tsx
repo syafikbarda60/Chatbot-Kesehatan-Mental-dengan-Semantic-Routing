@@ -43,9 +43,9 @@ const styles = StyleSheet.create({
   },
   dot:   { width: 8, height: 8, borderRadius: 4 },
   text:  { flex: 1, gap: 2 },
-  label: { fontSize: Typography.base, fontFamily: 'Inter_500Medium' },
-  sub:   { fontSize: Typography.xs, fontFamily: 'Inter_400Regular' },
-  time:  { fontSize: Typography.xs, fontFamily: 'Inter_400Regular' },
+  label: { fontSize: Typography.base, fontFamily: 'PlusJakartaSans_500Medium' },
+  sub:   { fontSize: Typography.xs, fontFamily: 'PlusJakartaSans_400Regular' },
+  time:  { fontSize: Typography.xs, fontFamily: 'PlusJakartaSans_400Regular' },
 });
 
 export default SessionRow;

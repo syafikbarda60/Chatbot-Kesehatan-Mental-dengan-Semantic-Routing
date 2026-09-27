@@ -3,14 +3,14 @@
 
 import React from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ViewStyle,
   TextStyle,
   ActivityIndicator,
 } from 'react-native';
-import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
+import { Typography, Spacing, BorderRadius, Neu } from '@prototype/ui-shared';
 import { useTheme } from '@prototype/ui-shared';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -40,9 +40,9 @@ export const Button: React.FC<ButtonProps> = ({
 
   const getContainerStyle = (): ViewStyle => {
     switch (variant) {
-      case 'primary':   return { backgroundColor: colors.primary };
-      case 'secondary': return { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border };
-      case 'ghost':     return { backgroundColor: 'transparent' };
+      case 'primary':   return { backgroundColor: colors.primary, boxShadow: Neu.raised };
+      case 'secondary': return { backgroundColor: colors.background, boxShadow: Neu.raised };
+      case 'ghost':     return {};
       case 'danger':    return { backgroundColor: colors.stressHigh };
       default:          return {};
     }
@@ -51,7 +51,7 @@ export const Button: React.FC<ButtonProps> = ({
   const getLabelColor = () => {
     switch (variant) {
       case 'primary':   return '#FFFFFF';
-      case 'secondary': return colors.textSecondary;
+      case 'secondary': return colors.primary;
       case 'ghost':     return colors.textSecondary;
       case 'danger':    return '#FFFFFF';
       default:          return colors.textPrimary;
@@ -59,11 +59,20 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <TouchableOpacity
+    <Pressable
       onPress={onPress}
       disabled={disabled || loading}
-      style={[styles.base, getContainerStyle(), (disabled || loading) && styles.disabled, style]}
-      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+      style={({ pressed }) => [
+        styles.base,
+        getContainerStyle(),
+        // Neumorphic press: the surface sinks in instead of fading out
+        pressed && variant !== 'ghost' && { boxShadow: Neu.inset, transform: [{ scale: 0.98 }] },
+        (disabled || loading) && styles.disabled,
+        style,
+      ]}
     >
       {loading ? (
         <ActivityIndicator color={getLabelColor()} size="small" />
@@ -73,7 +82,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text style={[styles.label, { color: getLabelColor() }, textStyle]}>{label}</Text>
         </>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -82,8 +91,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.base + 2,
+    borderRadius: BorderRadius.xl,
+    minHeight: 52,
+    paddingVertical: Spacing.base,
     paddingHorizontal: Spacing.xl,
     gap: Spacing.sm,
   },

@@ -1,25 +1,16 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
 import { apiRequestPasswordReset, apiConfirmPasswordReset } from '@prototype/api-client';
+import { NeuView, Input, Button, IconButton, useToast } from '../components/ui';
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const toast = useToast();
 
   const [step, setStep] = useState<'request' | 'confirm'>('request');
   const [email, setEmail] = useState('');
@@ -30,7 +21,7 @@ export default function ForgotPasswordScreen() {
 
   const handleRequestOTP = async () => {
     if (!email.trim()) {
-      setError('Email tidak boleh kosong');
+      setError('Email tidak boleh kosong.');
       return;
     }
     setIsLoading(true);
@@ -38,9 +29,9 @@ export default function ForgotPasswordScreen() {
     try {
       await apiRequestPasswordReset(email.trim());
       setStep('confirm');
-      Alert.alert('Sukses', 'Jika email terdaftar, OTP telah dikirimkan ke email Anda.');
+      toast.show('Kode OTP dikirim. Cek email kamu.', 'info');
     } catch (err: any) {
-      setError(err.message || 'Gagal mengirim OTP');
+      setError(err.message || 'Gagal mengirim kode OTP.');
     } finally {
       setIsLoading(false);
     }
@@ -48,184 +39,131 @@ export default function ForgotPasswordScreen() {
 
   const handleConfirmReset = async () => {
     if (!otp.trim() || !newPassword.trim()) {
-      setError('OTP dan Password baru harus diisi');
+      setError('Kode OTP dan kata sandi baru harus diisi.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setError('Kata sandi minimal 8 karakter.');
       return;
     }
     setIsLoading(true);
     setError('');
     try {
       await apiConfirmPasswordReset(email.trim(), otp.trim(), newPassword);
-      Alert.alert('Sukses', 'Password berhasil diubah. Silakan login dengan password baru.');
+      toast.show('Kata sandi berhasil diubah. Silakan masuk dengan kata sandi baru.');
       router.replace('/');
     } catch (err: any) {
-      setError(err.message || 'OTP salah atau gagal mengubah password');
+      setError(err.message || 'Kode OTP salah atau gagal mengubah kata sandi.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isRequest = step === 'request';
 
   return (
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={[s.blobTL, { backgroundColor: colors.primaryContainer + '50' }]} />
-      <View style={[s.blobBR, { backgroundColor: colors.tertiaryContainer + '35' }]} />
+      <ScrollView
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 40 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={s.topBar}>
+          <IconButton
+            icon="arrow-back"
+            label="Kembali"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          />
+        </View>
 
-      <View style={[s.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.onSurface} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={[s.content, { paddingBottom: insets.bottom + 40 }]}>
-        <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-          <Text style={[s.cardTitle, { color: colors.onSurface }]}>Reset Password</Text>
-          <Text style={[s.cardSub, { color: colors.onSurfaceVariant }]}>
-            {step === 'request'
-              ? 'Masukkan email Anda untuk menerima kode OTP pemulihan akun.'
-              : 'Masukkan kode OTP yang dikirim ke email dan password baru Anda.'}
+        <View style={s.content}>
+          <Text style={[s.step, { color: colors.onSurfaceVariant }]}>Langkah {isRequest ? 1 : 2} dari 2</Text>
+          <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">
+            {isRequest ? 'Lupa kata sandi?' : 'Cek email kamu'}
+          </Text>
+          <Text style={[s.sub, { color: colors.onSurfaceVariant }]}>
+            {isRequest
+              ? 'Masukkan email akunmu. Kami akan mengirim kode OTP untuk mengatur ulang kata sandi.'
+              : 'Jika ' + email.trim() + ' terdaftar, kode OTP sudah dikirim. Masukkan kode itu dan kata sandi barumu.'}
           </Text>
 
-          {step === 'request' && (
-            <View style={s.field}>
-              <Text style={[s.fieldLabel, { color: colors.outline }]}>EMAIL ADDRESS</Text>
-              <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
-                <Ionicons name="mail-outline" size={17} color={colors.outline} style={s.inputIcon} />
-                <TextInput
-                  style={[s.input, { color: colors.onSurface }]}
-                  placeholder="your.name@university.ac.id"
-                  placeholderTextColor={colors.outline + '70'}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
+          <View style={s.card}>
+            {isRequest ? (
+              <Input
+                label="Email"
+                placeholder="nama@students.undip.ac.id"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                textContentType="emailAddress"
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
+                leftIcon={<Ionicons name="mail-outline" size={18} color={colors.onSurfaceVariant} />}
+              />
+            ) : (
+              <>
+                <Input
+                  label="Kode OTP"
+                  placeholder="6 digit kode"
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  value={otp}
+                  onChangeText={setOtp}
                   editable={!isLoading}
+                  leftIcon={<Ionicons name="keypad-outline" size={18} color={colors.onSurfaceVariant} />}
                 />
-              </View>
-            </View>
-          )}
+                <Input
+                  label="Kata sandi baru"
+                  placeholder="Minimal 8 karakter"
+                  secureTextEntry
+                  autoComplete="new-password"
+                  textContentType="newPassword"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  editable={!isLoading}
+                  leftIcon={<Ionicons name="lock-closed-outline" size={18} color={colors.onSurfaceVariant} />}
+                />
+              </>
+            )}
 
-          {step === 'confirm' && (
-            <>
-              <View style={s.field}>
-                <Text style={[s.fieldLabel, { color: colors.outline }]}>KODE OTP</Text>
-                <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
-                  <Ionicons name="keypad-outline" size={17} color={colors.outline} style={s.inputIcon} />
-                  <TextInput
-                    style={[s.input, { color: colors.onSurface }]}
-                    placeholder="Masukkan 6 digit OTP"
-                    placeholderTextColor={colors.outline + '70'}
-                    keyboardType="number-pad"
-                    value={otp}
-                    onChangeText={setOtp}
-                    editable={!isLoading}
-                  />
-                </View>
-              </View>
+            {error ? (
+              <Text style={[s.errorTxt, { color: colors.error }]} accessibilityLiveRegion="polite">{error}</Text>
+            ) : null}
 
-              <View style={s.field}>
-                <Text style={[s.fieldLabel, { color: colors.outline }]}>PASSWORD BARU</Text>
-                <View style={[s.inputWrap, { backgroundColor: colors.surfaceContainerLow }]}>
-                  <Ionicons name="lock-closed-outline" size={17} color={colors.outline} style={s.inputIcon} />
-                  <TextInput
-                    style={[s.input, { color: colors.onSurface }]}
-                    placeholder="••••••••"
-                    placeholderTextColor={colors.outline + '70'}
-                    secureTextEntry
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    editable={!isLoading}
-                  />
-                </View>
-              </View>
-            </>
-          )}
+            <Button
+              label={isRequest ? 'Kirim kode OTP' : 'Simpan kata sandi baru'}
+              onPress={isRequest ? handleRequestOTP : handleConfirmReset}
+              loading={isLoading}
+              style={{ marginTop: 8 }}
+            />
 
-          {error ? (
-            <Text style={[s.errorTxt, { color: colors.error }]}>{error}</Text>
-          ) : null}
-
-          <TouchableOpacity
-            activeOpacity={0.88}
-            style={[s.primaryWrap, isLoading && { opacity: 0.7 }]}
-            onPress={step === 'request' ? handleRequestOTP : handleConfirmReset}
-            disabled={isLoading}
-          >
-            <LinearGradient
-              colors={[colors.primary, colors.primaryDim]}
-              style={s.primaryBtn}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <Text style={[s.primaryBtnTxt, { color: colors.onPrimary }]}>
-                  {step === 'request' ? 'Kirim OTP' : 'Update Password'}
-                </Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {step === 'confirm' && (
-            <TouchableOpacity onPress={() => setStep('request')} style={{ marginTop: 16 }}>
-              <Text style={{ textAlign: 'center', color: colors.primary, fontSize: 13 }}>Kirim ulang OTP</Text>
-            </TouchableOpacity>
-          )}
+            {!isRequest && (
+              <TouchableOpacity onPress={() => setStep('request')} style={s.linkBtn} accessibilityRole="button">
+                <Text style={[s.linkTxt, { color: colors.primary }]}>Kirim ulang kode</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  header: { paddingHorizontal: 16, zIndex: 10 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-
-  blobTL: {
-    position: 'absolute', width: 300, height: 300, borderRadius: 150,
-    top: -80, left: -80,
-  },
-  blobBR: {
-    position: 'absolute', width: 240, height: 240, borderRadius: 120,
-    bottom: -60, right: -60,
-  },
-
-  card: {
-    width: '100%', borderRadius: 28, padding: 28,
-    shadowColor: '#2b3437',
-    shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.08, shadowRadius: 48,
-    elevation: 5, marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 28, fontFamily: 'PlusJakartaSans_800ExtraBold',
-    letterSpacing: -0.6, marginBottom: 4,
-  },
-  cardSub: {
-    fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 28,
-  },
-
-  field: { marginBottom: 16 },
-  fieldLabel: {
-    fontSize: 10, fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
-  },
-  inputWrap: {
-    flexDirection: 'row', alignItems: 'center',
-    borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14,
-  },
-  inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium' },
-
-  primaryWrap: { borderRadius: 20, overflow: 'hidden', marginTop: 8 },
-  primaryBtn: { paddingVertical: 18, alignItems: 'center', borderRadius: 20 },
-  primaryBtnTxt: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.3 },
-
-  errorTxt: {
-    fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium',
-    textAlign: 'center', marginBottom: 8, marginTop: -4,
-  },
+  scroll: { flexGrow: 1, paddingHorizontal: 24 },
+  topBar: { marginBottom: 32 },
+  content: { width: '100%', maxWidth: 440, alignSelf: 'center' },
+  step: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', marginBottom: 6 },
+  title: { fontSize: 28, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.7, marginBottom: 8 },
+  sub: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 22, marginBottom: 24 },
+  card: { gap: 8 },
+  errorTxt: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center', marginTop: 4 },
+  linkBtn: { minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  linkTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
 });

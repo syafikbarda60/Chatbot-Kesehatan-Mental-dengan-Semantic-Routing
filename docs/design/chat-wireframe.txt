@@ -1,0 +1,128 @@
+SAJIWA - CHAT SCREEN WIREFRAME (REDESIGN)
+============================================
+Format: ASCII text wireframe
+Scope: apps/mobile/app/chat.tsx and components/chat/*
+Typography spirit: Cabinet Grotesk (mapped to PlusJakartaSans weight spectrum)
+Hero architecture: Editorial Split
+Components: Card Stacking, Inline Typography Images, Horizontal Accordions
+Motion: Hover Physics (press), staggered entrance, scroll-linked feel
+
+
+1. MAIN CHAT SCREEN
+-------------------
+
++-------------------------------------------------+
+|  DIALOGUE WITH SAJIWA AI                     |
+|  +--------------------------+        +-------+  |
+|  | (leaf) Sajiwa  o live |        |  o o  |  |  <- Editorial Split hero
+|  +--------------------------+        | ooooo |  |     left: badge + title
+|  Dialogue with Sajiwa AI          +-------+  |     right: wellness avatar
+|  Ruang refleksimu yang aman...        (animated) |     (pulse=heavy, rotate=calm)
++-------------------------------------------------+
+|  +-------------------------------------------+  |
+|  | [img]  (ok) Kondisi Baik            v      |  |  <- StressBar COLLAPSED
+|  |        Kamu terlihat cukup tenang...       |  |     44x44 micro-image + icon
+|  +-------------------------------------------+  |
++-------------------------------------------------+
+|                                                 |
+|              (leaf)                             |
+|           Ruang Refleksimu                      |  <- Empty state (fade + slide)
+|      Ceritakan apapun. Sajiwa                |
+|      mendengarkan dengan penuh empati...        |
+|                                                 |
+|  +------+                                       |
+|  |(leaf)|  Hei, senang kamu di sini...          |  <- AI bubble (stagger in)
+|  +------+  10:24                                |
+|                                    +----------+ |
+|                                    | Aku sedih| |  <- User bubble (right)
+|                                    +----------+ |
+|                                        10:25     |
+|  +------+                                       |
+|  |(leaf)|  Perasaanmu valid.  +------+          |  <- Inline micro-image
+|  +------+  10:26            | img  |           |     inside AI bubble
+|                              +------+           |
++-------------------------------------------------+
+|  +---------+ +----+ +----+ +----+               |  <- QuickReply Horizontal
+|  | (chat)  | |(pl)| |(cl)| |(pp)|               |     Accordions; expand on
+|  |Cerita v | |Cemas| |Sedih| |Kesepian|         |     press: 56px -> 280px
+|  +---------+ +----+ +----+ +----+               |
+|                                                 |
+|  +-------------------------------+   +----+    |  <- Input bar + send button
+|  | Tulis sesuatu...              |   |  ^ |    |     (dark send = white icon)
+|  +-------------------------------+   +----+    |
++-------------------------------------------------+
+
+
+2. STRESSBAR - EXPANDED STATE
+-----------------------------
+
++-----------------------------------------------+
+| [img]  (ok) Kondisi Baik                   ^  |
+|        Kamu terlihat cukup tenang hari ini.    |
++-----------------------------------------------+
+|  +------+  Lanjutkan cerita, atau coba jurnal  |
+|  | img  |  singkat.                             |
+|  +------+                                       |
+|  +------------------+ +------------------+      |
+|  | (book) Jurnal Ini| | (chat) Lanjut    |      |
+|  +------------------+ +------------------+      |
++-----------------------------------------------+
+
+Tiers:
+  calm  (0-3)  : icon checkmark-circle, action "Jurnal Hari Ini"
+  gentle(4-6)  : icon partly-sunny,     action "Latihan Napas"
+  heavy (7-10) : icon rainy,            action "Hubungi Dukungan"
+
+
+3. QUICK REPLY - HORIZONTAL ACCORDION STATES
+--------------------------------------------
+
+Collapsed (56px):
+  +----+ +----+ +----+ +----+
+  |(ic)| |(ic)| |(ic)| |(ic)|     icon only, chevron hidden
+  +----+ +----+ +----+ +----+
+
+Expanded (up to 280px):
+  +-------------------------------+
+  | (icon)  Label text        ...  |   icon + full prompt + sub-label
+  +-------------------------------+
+
+Motion: width interpolate 56 -> min(280, 75% screen), spring icon pop on press.
+
+
+4. ALERT MODAL (heavy tier) - SCROLL-PINNED FEEL
+------------------------------------------------
+
++-----------------------------------------------+
+|  (alert) Perlu Perhatian                       |  <- pinned header
+|          Sajiwa mendeteksi kondisi...      |
++-----------------------------------------------+
+|  Kamu tidak sendirian. Berikut kontak...      |  <- body (stagger 80ms)
+|  +----+ Into The Light         119 ext 8  >   |
+|  |call|                                        |
+|  +----+ Yayasan Pulih          (021) 788.. >   |
+|  |med |                                        |
+|  +----+ IGD RS Terdekat         118        >   |
+|  (shield) Data Anda aman...                   |
++-----------------------------------------------+
+|  [ Nanti Saja ]     [ Hubungi Sekarang ]      |  <- pinned actions
++-----------------------------------------------+
+
+Entrance: card scale 0.9 -> 1, translateY 40 -> 0;
+content stagger order: header -> body -> contacts -> actions (80ms each).
+
+
+5. DESIGN TOKENS (REFERENCE)
+----------------------------
+
+Spacing scale : sm 8, md 12, lg 16, xl 24, xxl 32
+Radii         : md 8, lg 12, xl 16, xxl 24, full 9999
+Type ramp     : hero 32/800, empty title 30/800, bubble 15/400,
+                label 14/700, message 13/400, meta 10.5/400
+Motion        : press scale 0.96 (80ms in, spring out),
+                entrance 280-350ms cubic-out, stagger 70-80ms
+Banned        : meta-labels ("SECTION 01"), emoji in code,
+                invisible button text, flat backgrounds
+
+
+END OF WIREFRAME

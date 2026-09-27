@@ -1,5 +1,5 @@
 -- =========================================================
--- Sanctuary — Migration SQL (sesuai ERD)
+-- Sajiwa — Migration SQL (sesuai ERD)
 -- Jalankan di Supabase Dashboard → SQL Editor
 -- =========================================================
 -- Tabel existing yang DIJAGA: documents, messages, chat_sessions, guardrail_logs

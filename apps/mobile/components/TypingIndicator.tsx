@@ -1,8 +1,8 @@
-// components/TypingIndicator.tsx — legacy root component, updated for Sanctuary
+// components/TypingIndicator.tsx — legacy root component, updated for Sajiwa
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { SanctuaryColors, BorderRadius, Spacing } from '@prototype/ui-shared';
+import { SajiwaColors, BorderRadius, Spacing } from '@prototype/ui-shared';
 
 const DOT = 8;
 
@@ -35,7 +35,7 @@ const Dot = ({ delay }: { delay: number }) => {
 export const TypingIndicator: React.FC = () => (
   <View style={styles.container}>
     <View style={styles.avatarSmall}>
-      <Ionicons name="leaf-outline" size={14} color={SanctuaryColors.primary} />
+      <Image source={require('../assets/image.png')} style={{ width: 14, height: 14 }} resizeMode="contain" />
     </View>
     <View style={styles.bubble}>
       <View style={styles.dotsRow}>
@@ -57,11 +57,11 @@ const styles = StyleSheet.create({
   },
   avatarSmall: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: SanctuaryColors.primaryContainer + '50',
+    backgroundColor: SajiwaColors.primaryContainer + '50',
     alignItems: 'center', justifyContent: 'center',
   },
   bubble: {
-    backgroundColor: SanctuaryColors.surfaceContainerLow,
+    backgroundColor: SajiwaColors.surfaceContainerLow,
     borderRadius: BorderRadius.xl,
     borderBottomLeftRadius: 4,
     paddingHorizontal: Spacing.base,
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   },
   dot: {
     width: DOT, height: DOT, borderRadius: DOT / 2,
-    backgroundColor: SanctuaryColors.primary + '60',
+    backgroundColor: SajiwaColors.primary + '60',
   },
 });
 

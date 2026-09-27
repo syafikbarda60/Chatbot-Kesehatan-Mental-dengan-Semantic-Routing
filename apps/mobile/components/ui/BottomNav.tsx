@@ -3,15 +3,17 @@ import { View, Text, TouchableOpacity, StyleSheet, Animated } from 'react-native
 import { Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '@prototype/ui-shared';
+import { useTheme, Neu } from '@prototype/ui-shared';
 
 type Tab = { label: string; icon: string; iconActive: string; route: string };
 
 const TABS: Tab[] = [
-  { label: 'Home',     icon: 'home-outline',       iconActive: 'home',        route: '/home'    },
-  { label: 'Dialogue', icon: 'chatbubble-outline',  iconActive: 'chatbubble',  route: '/chat'    },
-  { label: 'Journaling', icon: 'book-outline', iconActive: 'book', route: '/journal-history' },
-  { label: 'Profile',  icon: 'person-outline',      iconActive: 'person',      route: '/profile' },
+  { label: 'Home',     icon: 'home-outline',       iconActive: 'home',        route: '/home'     },
+  { label: 'Chat'    , icon: 'chatbubble-outline',  iconActive: 'chatbubble',  route: '/chat'     },
+  { label: 'Konseling', icon: 'calendar-outline',    iconActive: 'calendar',    route: '/schedule' }, // TEMP HIDDEN
+  { label: 'Jurnal',  icon: 'book-outline',        iconActive: 'book',        route: '/journal-history' },
+  // { label: 'Hotline', icon: 'call-outline',        iconActive: 'call',        route: '/hotline'  },
+  { label: 'Profil',  icon: 'person-outline',      iconActive: 'person',      route: '/profile'  },
 ];
 
 export default function BottomNav() {
@@ -29,27 +31,25 @@ export default function BottomNav() {
   };
 
   return (
-    <View style={[
-      s.bar,
-      {
-        paddingBottom: insets.bottom + 6,
-        backgroundColor: colors.surfaceContainerLowest + 'F4',
-        borderTopColor: colors.outlineVariant + '25',
-        shadowColor: colors.onSurface,
-      }
-    ]}>
+    <View
+      accessibilityRole="tablist"
+      style={[s.bar, { bottom: insets.bottom + 10, backgroundColor: colors.background, boxShadow: Neu.raised }]}
+    >
       {TABS.map((tab, i) => {
         const active = pathname === tab.route;
         return (
           <Animated.View key={tab.route} style={[s.tabWrap, { transform: [{ scale: scales[i] }] }]}>
-            <TouchableOpacity style={s.tab} onPress={() => handlePress(tab.route, i)} activeOpacity={1}>
-              {/* Active indicator top pill */}
-              {active && (
-                <View style={[s.pill, { backgroundColor: colors.primaryContainer }]} />
-              )}
+            <TouchableOpacity
+              style={[s.tab, active && { boxShadow: Neu.inset }]}
+              onPress={() => handlePress(tab.route, i)}
+              activeOpacity={1}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: active }}
+            >
               <Ionicons
                 name={(active ? tab.iconActive : tab.icon) as any}
-                size={24}
+                size={22}
                 color={active ? colors.primary : colors.tabInactive}
               />
               <Text style={[
@@ -71,22 +71,17 @@ export default function BottomNav() {
 
 const s = StyleSheet.create({
   bar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
+    position: 'absolute', left: 16, right: 16,
     flexDirection: 'row',
-    borderTopWidth: 1,
-    paddingTop: 8,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.05, shadowRadius: 12, elevation: 12,
+    borderRadius: 28,
+    padding: 6,
+    gap: 4,
   },
   tabWrap: { flex: 1 },
   tab: {
-    alignItems: 'center', paddingVertical: 6,
-    gap: 3, position: 'relative',
+    alignItems: 'center', justifyContent: 'center',
+    minHeight: 52, borderRadius: 22,
+    gap: 2,
   },
-  pill: {
-    position: 'absolute', top: -8,
-    width: 32, height: 3, borderRadius: 999,
-  },
-  label: { fontSize: 10, letterSpacing: 0.2 },
+  label: { fontSize: 11, letterSpacing: 0.1 },
 });
-

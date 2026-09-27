@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "Al Sahabat Mahasiswa",
-    "slug": "al-sahabat-mahasiswa",
+    "name": "Sajiwa",
+    "slug": "sajiwa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
-    "scheme": "alsahabat",
+    "newArchEnabled": true,
+    "scheme": "sajiwa",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#3D6B4F"
+      "backgroundColor": "#FFF2F2"
     },
     "ios": {
       "supportsTablet": true
@@ -19,7 +19,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0E1A"
+        "backgroundColor": "#FFF2F2"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false

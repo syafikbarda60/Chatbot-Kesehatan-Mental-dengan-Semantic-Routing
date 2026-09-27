@@ -1,27 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Literal
-from supabase import create_client
-from auth import require_role, get_current_user
+from datetime import datetime, timezone
+import os, uuid, secrets
+
+import bcrypt
 from dotenv import load_dotenv
-import os
+from psycopg.errors import UniqueViolation
+
+from auth import require_role, get_current_user, create_token, EXPIRES_IN
+from core.db import db, query
 
 load_dotenv()
 
 router = APIRouter(tags=["Account"])
 
-# Anon client — untuk login publik
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
 
-# Service-role client — untuk admin CRUD
-_svc_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_ANON_KEY")
-supabase_admin = create_client(os.getenv("SUPABASE_URL"), _svc_key)
-
-# Role sesuai ERD
-VALID_ROLES = ("mahasiswa", "konselor", "admin", "pemangku_jabatan")
+def _hash(pw: str) -> str:
+    return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
 
 
-# ── Schema ────────────────────────────────────────────────────────────────────
+def _verify(pw: str, hashed: Optional[str]) -> bool:
+    return bool(hashed) and bcrypt.checkpw(pw.encode(), hashed.encode())
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -50,225 +51,168 @@ class ConfirmPasswordResetRequest(BaseModel):
     new_password: str
 
 
-
-# ── Auth (Login & Register) ──────────────────────────────────────────────────
-
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
 def register(request: CreateAccountRequest):
-    """
-    CB-12 (Public) — Registrasi user baru.
-    Mencakup pembuatan di Supabase Auth dan insert ke tabel users.
-    """
+    user_id = str(uuid.uuid4())
     try:
-        # 1. Buat di Supabase Auth
-        resp = supabase.auth.sign_up({
-            "email": request.email,
-            "password": request.password,
-            "options": {
-                "data": {
-                    "nama": request.nama,
-                    "nim": request.nim,
-                    "role": "mahasiswa",
-                }
-            }
-        })
-        
-        if not resp.user:
-            raise HTTPException(status_code=400, detail="Gagal registrasi di auth")
+        with db(user_id) as conn:
+            conn.execute(
+                "insert into users (user_id, email, nama, nim, role, password_hash) "
+                "values (%s, %s, %s, %s, 'mahasiswa', %s)",
+                (user_id, request.email, request.nama, request.nim, _hash(request.password)),
+            )
+    except UniqueViolation:
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
 
-        # 2. Insert ke tabel users
-        try:
-            supabase_admin.table("users").upsert({
-                "user_id": str(resp.user.id),
-                "email": request.email,
-                "nama": request.nama,
-                "nim": request.nim if request.nim else None,
-                "role": "mahasiswa",
-            }, on_conflict="user_id").execute()
-        except Exception as e:
-            print(f"Warning: User insert/update gagal: {e}")
+    token = create_token(user_id, request.email)
+    return {
+        "user_id": user_id,
+        "message": "Registrasi berhasil. Silakan login dengan akun kamu.",
+        "session": {
+            "access_token": token,
+            "token_type": "bearer",
+            "expires_in": EXPIRES_IN,
+        },
+    }
 
-        return {
-            "user_id": str(resp.user.id),
-            "message": "Registrasi berhasil. Silakan login dengan akun kamu.",
-            "session": resp.session,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Register error: {e}")
-        raise HTTPException(status_code=400, detail=f"Registrasi gagal: {str(e)}")
-
-
-# ── CB-09: login ──────────────────────────────────────────────────────────────
 
 @router.post("/auth/login")
 def login(request: LoginRequest):
-    """
-    CB-09 — Autentikasi via Supabase Auth, lalu ambil data profil dari tabel users.
-    """
-    try:
-        response = supabase.auth.sign_in_with_password({
-            "email": request.email,
-            "password": request.password,
-        })
-        if not response.session:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Email atau password salah",
-            )
-        auth_user = response.user
-        session = response.session
+    rows = query(
+        "select user_id, email, nama, nim, role, password_hash "
+        "from auth_lookup(%s)",
+        (request.email,),
+    )
+    user = rows[0] if rows else None
 
-        # Ambil profil dari tabel users
-        profile = supabase.table("users").select("*").eq(
-            "user_id", str(auth_user.id)
-        ).maybe_single().execute()
-
-        user_data = profile.data or {}
-
-        return {
-            "access_token": session.access_token,
-            "refresh_token": session.refresh_token,
-            "token_type": "bearer",
-            "expires_in": session.expires_in,
-            "user": {
-                "user_id": str(auth_user.id),
-                "email": auth_user.email,
-                "nama": user_data.get("nama"),
-                "nim": user_data.get("nim"),
-                "role": user_data.get("role", "mahasiswa"),
-            },
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Login error: {e}")
+    if not user or not _verify(request.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password salah",
         )
 
-# ── CB-xx: Lupa Password (OTP) ────────────────────────────────────────────────
+    user_id = str(user["user_id"])
+    token = create_token(user_id, user["email"])
+
+    return {
+        "access_token": token,
+        "refresh_token": "",
+        "token_type": "bearer",
+        "expires_in": EXPIRES_IN,
+        "user": {
+            "user_id": user_id,
+            "email": user["email"],
+            "nama": user["nama"],
+            "nim": user["nim"],
+            "role": user["role"],
+        },
+    }
+
 
 @router.post("/auth/reset-password/request")
 def request_password_reset(request: ResetPasswordRequest):
-    """Meminta OTP ke email untuk reset password."""
-    try:
-        supabase.auth.reset_password_email(request.email)
-        return {"message": "Jika email terdaftar, OTP telah dikirimkan."}
-    except Exception as e:
-        # Kita tetap return sukses walau gagal untuk mencegah email enumeration attack
-        return {"message": "Jika email terdaftar, OTP telah dikirimkan."}
+    rows = query("select user_id from auth_lookup(%s)", (request.email,))
+    if rows:
+        otp = f"{secrets.randbelow(1000000):06d}"
+        query(
+            "insert into password_resets (email, otp_hash, expires_at) "
+            "values (%s, %s, now() + interval '15 minutes') "
+            "on conflict (email) do update set otp_hash = excluded.otp_hash, "
+            "expires_at = excluded.expires_at, used = false",
+            (request.email, _hash(otp)),
+        )
+        # ponytail: no SMTP wired; OTP goes to the server log. Add email delivery before prod.
+        print(f"[reset-password] OTP untuk {request.email}: {otp}")
+
+    return {"message": "Jika email terdaftar, OTP telah dikirimkan."}
+
 
 @router.post("/auth/reset-password/confirm")
 def confirm_password_reset(request: ConfirmPasswordResetRequest):
-    """Verifikasi OTP dan update password baru."""
-    try:
-        # 1. Verifikasi OTP (mengubah status session menjadi login sementara)
-        resp = supabase.auth.verify_otp({
-            "email": request.email,
-            "token": request.otp,
-            "type": "recovery"
-        })
-        if not resp.session:
-            raise HTTPException(status_code=400, detail="OTP salah atau kedaluwarsa")
-        
-        # 2. Update password
-        update_resp = supabase.auth.update_user({
-            "password": request.new_password
-        })
-        if not update_resp.user:
-            raise HTTPException(status_code=400, detail="Gagal update password")
-            
-        # 3. Opsional: Sign out agar user harus login ulang dengan password baru
-        supabase.auth.sign_out()
-        
-        return {"message": "Password berhasil diubah. Silakan login kembali."}
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Reset password error: {e}")
-        raise HTTPException(status_code=400, detail="Gagal mengubah password. Pastikan OTP benar.")
+    rows = query(
+        "select otp_hash, expires_at, used from password_resets where email = %s",
+        (request.email,),
+    )
+    rec = rows[0] if rows else None
+    if (
+        not rec
+        or rec["used"]
+        or rec["expires_at"] < datetime.now(timezone.utc)
+        or not _verify(request.otp, rec["otp_hash"])
+    ):
+        raise HTTPException(status_code=400, detail="OTP salah atau kedaluwarsa")
 
+    users = query("select user_id from auth_lookup(%s)", (request.email,))
+    if not users:
+        raise HTTPException(status_code=400, detail="OTP salah atau kedaluwarsa")
 
+    user_id = str(users[0]["user_id"])
+    query("select set_password(%s, %s)", (user_id, _hash(request.new_password)))
+    query(
+        "update password_resets set used = true where email = %s",
+        (request.email,),
+    )
 
-# ── GET /me — profil sendiri ──────────────────────────────────────────────────
+    return {"message": "Password berhasil diubah. Silakan login kembali."}
+
 
 @router.get("/auth/me")
 def get_my_profile(user=Depends(get_current_user)):
-    """Ambil profil user yang sedang login dari tabel users."""
-    profile = supabase.table("users").select("*").eq(
-        "user_id", str(user.id)
-    ).maybe_single().execute()
-    if not profile.data:
+    rows = query("select * from users where user_id = %s", (user.id,), user_id=user.id)
+    if not rows:
         raise HTTPException(status_code=404, detail="Profil tidak ditemukan")
-    return profile.data
+    rows[0].pop("password_hash", None)
+    return rows[0]
 
-
-# ── CB-11: getAccountList ─────────────────────────────────────────────────────
 
 @router.get("/accounts")
 def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
-    """
-    CB-11 — Ambil daftar seluruh pengguna dari tabel users (sesuai ERD).
-    """
     try:
-        result = supabase_admin.table("users").select(
-            "user_id, nama, email, nim, role, created_at"
-        ).order("created_at", desc=True).execute()
-        return {"users": result.data or [], "total": len(result.data or [])}
+        rows = query(
+            "select user_id, nama, email, nim, role, created_at from users "
+            "order by created_at desc",
+            user_id=admin.id,
+        )
+        return {"users": rows, "total": len(rows)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Gagal mengambil daftar akun: {e}")
 
 
-# ── CB-12: createAccount ──────────────────────────────────────────────────────
+@router.get("/accounts/konselor")
+def get_konselor_list(user=Depends(get_current_user)):
+    """Counselor directory for the booking screen (public fields only, via list_konselor())."""
+    rows = query("select user_id, nama, role from list_konselor()", user_id=user.id)
+    return {"users": rows, "total": len(rows)}
+
 
 @router.post("/accounts", status_code=status.HTTP_201_CREATED)
 def create_account(request: CreateAccountRequest, admin=Depends(require_role("admin", "pemangku_jabatan"))):
-    """
-    CB-12 — Buat user baru di Supabase Auth + insert ke tabel users.
-    """
+    user_id = str(uuid.uuid4())
     try:
-        # 1. Buat di Supabase Auth
-        auth_resp = supabase_admin.auth.admin.create_user({
-            "email": request.email,
-            "password": request.password,
-            "email_confirm": True,
-            "user_metadata": {
-                "nama": request.nama,
-                "role": request.role,
-                "nim": request.nim,
-            },
-        })
-        if not auth_resp.user:
-            raise HTTPException(status_code=500, detail="Gagal membuat akun di Auth")
+        with db(admin.id) as conn:
+            conn.execute(
+                "insert into users (user_id, nama, email, nim, role, password_hash) "
+                "values (%s, %s, %s, %s, %s, %s)",
+                (
+                    user_id,
+                    request.nama,
+                    request.email,
+                    request.nim,
+                    request.role,
+                    _hash(request.password),
+                ),
+            )
+    except UniqueViolation:
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar")
 
-        uid = str(auth_resp.user.id)
+    return {
+        "user_id": user_id,
+        "email": request.email,
+        "nama": request.nama,
+        "role": request.role,
+        "message": "Akun berhasil dibuat",
+    }
 
-        # 2. Insert ke tabel users (trigger seharusnya sudah insert, ini fallback)
-        supabase_admin.table("users").upsert({
-            "user_id": uid,
-            "nama": request.nama,
-            "email": request.email,
-            "nim": request.nim,
-            "role": request.role,
-        }).execute()
-
-        return {
-            "user_id": uid,
-            "email": request.email,
-            "nama": request.nama,
-            "role": request.role,
-            "message": "Akun berhasil dibuat",
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Gagal membuat akun: {e}")
-
-
-# ── CB-13: updateAccount ──────────────────────────────────────────────────────
 
 @router.put("/accounts/{user_id}")
 def update_account(
@@ -276,24 +220,18 @@ def update_account(
     request: UpdateAccountRequest,
     admin=Depends(require_role("admin", "pemangku_jabatan")),
 ):
-    """CB-13 — Update data profil user di tabel users."""
     try:
-        update_data: dict = {}
-        if request.nama is not None:
-            update_data["nama"] = request.nama
-        if request.role is not None:
-            update_data["role"] = request.role
-        if request.nim is not None:
-            update_data["nim"] = request.nim
-
-        if not update_data:
+        if request.nama is None and request.role is None and request.nim is None:
             return {"message": "Tidak ada data yang diubah"}
 
-        result = supabase_admin.table("users").update(update_data).eq(
-            "user_id", user_id
-        ).execute()
+        rows = query(
+            "update users set nama = coalesce(%s, nama), role = coalesce(%s, role), "
+            "nim = coalesce(%s, nim) where user_id = %s returning user_id",
+            (request.nama, request.role, request.nim, user_id),
+            user_id=admin.id,
+        )
 
-        if not result.data:
+        if not rows:
             raise HTTPException(status_code=404, detail="User tidak ditemukan")
 
         return {"message": "Akun berhasil diperbarui", "user_id": user_id}
@@ -303,16 +241,18 @@ def update_account(
         raise HTTPException(status_code=400, detail=f"Gagal memperbarui akun: {e}")
 
 
-# ── CB-14: deleteAccount ──────────────────────────────────────────────────────
-
 @router.delete("/accounts/{user_id}", status_code=status.HTTP_200_OK)
 def delete_account(user_id: str, admin=Depends(require_role("admin", "pemangku_jabatan"))):
-    """CB-14 — Hapus user dari tabel users + Supabase Auth."""
     try:
-        # Hapus dari tabel users dulu (CASCADE ke tabel lain)
-        supabase_admin.table("users").delete().eq("user_id", user_id).execute()
-        # Hapus dari Auth
-        supabase_admin.auth.admin.delete_user(user_id)
+        rows = query(
+            "delete from users where user_id = %s returning user_id",
+            (user_id,),
+            user_id=admin.id,
+        )
+        if not rows:
+            raise HTTPException(status_code=404, detail="User tidak ditemukan")
         return {"message": "Akun berhasil dihapus", "user_id": user_id}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Gagal menghapus akun: {e}")

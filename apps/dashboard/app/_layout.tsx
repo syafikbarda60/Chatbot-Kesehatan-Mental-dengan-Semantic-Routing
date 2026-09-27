@@ -17,8 +17,8 @@ export default function RootLayout() {
   // Check auth on mount (synchronous localStorage read — fast)
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('sanctuary_token');
-      const userRaw = localStorage.getItem('sanctuary_user');
+      const token = localStorage.getItem('sajiwa_token');
+      const userRaw = localStorage.getItem('sajiwa_user');
       if (token && userRaw) {
         try {
           const user = JSON.parse(userRaw);

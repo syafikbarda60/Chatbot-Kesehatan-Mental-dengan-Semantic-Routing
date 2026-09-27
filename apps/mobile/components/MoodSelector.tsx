@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: Typography.xs - 1,
     color: Colors.textMuted,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
     textAlign: 'center',
   },
   labelActive: { color: Colors.textPrimary },

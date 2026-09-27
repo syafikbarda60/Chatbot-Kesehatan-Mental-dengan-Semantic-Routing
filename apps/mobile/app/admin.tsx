@@ -1,3 +1,4 @@
+import { NeuView } from '../components/ui/NeuView';
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -15,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
-import { apiFetch, apiLogout, getUser } from '@prototype/api-client';
+import { apiFetch, apiLogout, getStoredUserSync } from '@prototype/api-client';
 
 interface UserRow {
   user_id: string;
@@ -50,7 +51,8 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getUser<{ nama: string }>().then((u) => { if (u?.nama) setAdminName(u.nama); });
+    const u = getStoredUserSync<{ nama: string }>();
+    if (u?.nama) setAdminName(u.nama);
     fetchUsers();
     Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
   }, []);
@@ -61,7 +63,14 @@ export default function AdminDashboard() {
       const data = await apiFetch<AccountsResponse>('/accounts');
       setUsers(data.users);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat data');
+      const msg = e instanceof Error ? e.message : 'Gagal memuat data';
+      setError(msg);
+      if (msg.toLowerCase().includes('token') || msg.toLowerCase().includes('autentikasi')) {
+        // Force logout if token invalid
+        Alert.alert('Sesi Berakhir', 'Silakan login kembali.', [
+          { text: 'OK', onPress: async () => { await apiLogout(); router.replace('/'); } }
+        ]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -96,7 +105,7 @@ export default function AdminDashboard() {
       >
         <View style={s.headerRow}>
           <View>
-            <Text style={s.headerSub}>SANCTUARY ADMIN</Text>
+            <Text style={s.headerSub}>SAJIWA ADMIN</Text>
             <Text style={s.headerTitle}>Halo, {adminName} 👋</Text>
           </View>
           <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
@@ -157,11 +166,11 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: any; color: string }) {
   return (
-    <View style={[s.statCard, { borderColor: color + '30', backgroundColor: color + '15' }]}>
+    <NeuView radius={20} style={[s.statCard, { borderColor: color + '30', backgroundColor: color + '15' }]}>
       <Ionicons name={icon} size={18} color={color} />
       <Text style={[s.statValue, { color: '#fff' }]}>{value}</Text>
       <Text style={[s.statLabel, { color: '#c7d2fe' }]}>{label}</Text>
-    </View>
+    </NeuView>
   );
 }
 
@@ -171,7 +180,7 @@ function UserCard({ user, colors }: { user: UserRow; colors: any }) {
   const date = new Date(user.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <View style={[s.userCard, { backgroundColor: colors.surfaceContainerLowest }]}>
+    <NeuView radius={20} style={[s.userCard, { }]}>
       <View style={[s.avatar, { backgroundColor: roleColor + '20' }]}>
         <Text style={[s.avatarTxt, { color: roleColor }]}>{initials}</Text>
       </View>
@@ -186,7 +195,7 @@ function UserCard({ user, colors }: { user: UserRow; colors: any }) {
         </View>
         <Text style={[s.dateJoined, { color: colors.outline }]}>{date}</Text>
       </View>
-    </View>
+    </NeuView>
   );
 }
 
@@ -212,8 +221,6 @@ const s = StyleSheet.create({
   userCard: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     borderRadius: 16, padding: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
   },
   avatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   avatarTxt: { fontSize: 16, fontFamily: 'PlusJakartaSans_800ExtraBold' },

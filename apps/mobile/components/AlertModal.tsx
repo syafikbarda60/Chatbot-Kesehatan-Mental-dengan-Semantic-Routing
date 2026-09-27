@@ -121,19 +121,19 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: Typography.md,
     color: Colors.textPrimary,
-    fontFamily: 'Poppins_600SemiBold',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   headerSub: {
     fontSize: Typography.sm,
     color: Colors.textMuted,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
   divider: { height: 1, backgroundColor: Colors.border },
   body: { padding: Spacing.xl, gap: Spacing.md },
   bodyText: {
     fontSize: Typography.sm,
     color: Colors.textSecondary,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
     lineHeight: Typography.sm * 1.6,
   },
   contactRow: {
@@ -147,12 +147,12 @@ const styles = StyleSheet.create({
   contactName: {
     fontSize: Typography.sm,
     color: Colors.textPrimary,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
   contactPhone: {
     fontSize: Typography.sm,
     color: Colors.stressLow,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
     fontVariant: ['tabular-nums'],
   },
   infoRow: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: Typography.xs,
     color: Colors.textMuted,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: 'PlusJakartaSans_400Regular',
     lineHeight: Typography.xs * 1.6,
   },
   actions: {
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   dismissText: {
     fontSize: Typography.sm,
     color: Colors.textSecondary,
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'PlusJakartaSans_500Medium',
   },
   confirmBtn: {
     flex: 2,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   confirmText: {
     fontSize: Typography.sm,
     color: '#fff',
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: 'PlusJakartaSans_600SemiBold',
   },
 });
 

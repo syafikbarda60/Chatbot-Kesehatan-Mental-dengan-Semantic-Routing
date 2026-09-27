@@ -1,14 +1,10 @@
-// hooks/useChat.ts
-// Encapsulates ALL chat state and side-effects.
-// Screens only call the returned interface — no logic leaks out.
-// v2: hits backend /chat endpoint instead of local AI responses.
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Animated } from 'react-native';
-import { analyzeStress, QUICK_REPLIES } from '@prototype/utils';
-import { apiChatStream } from '@prototype/api-client';
-import type { Message } from '../components/chat/ChatBubble';
-
+import { analyzeStress, QUICK_REPLIES, reactToUserMessage, type Expression } from '@prototype/utils';
+import { apiChatStream, apiGetChatHistory, apiReportToTeam } from '@prototype/api-client';
+import { useToast } from '../components/ui/Toast';
+import {Message} from '@prototype/utils';
 export interface UseChatReturn {
   messages: Message[];
   inputText: string;
@@ -17,6 +13,8 @@ export interface UseChatReturn {
   stressLevel: number;
   showAlert: boolean;
   closeAlert: () => void;
+  setShowAlert: (v: boolean) => void;
+  setAlertTriggered: (v: boolean) => void;
   quickReplies: string[];
   showQuickReplies: boolean;
   sendMessage: (text: string) => void;
@@ -24,22 +22,27 @@ export interface UseChatReturn {
   sendBtnScale: Animated.Value;
   sessionId: string;
   isHighRisk: boolean;
+  isLoadingHistory: boolean;
+  expression: Expression;
 }
 
-// Generate session ID per chat session
+// Generate session ID per chat session (UUIDv4 for PostgreSQL compatibility)
 function generateSessionId() {
-  return `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 // Greeting lokal — tidak perlu hit backend
 const GREETINGS = [
-  'Hei, senang kamu di sini 💙 Apa yang ingin kamu ceritakan hari ini?',
+  'Hei, senang kamu di sini. Apa yang ingin kamu ceritakan hari ini?',
   'Halo! Aku siap mendengarkan. Bagaimana perasaanmu sekarang?',
-  'Selamat datang ☀️ Ceritakan apapun yang ada di pikiranmu.',
+  'Selamat datang. Ceritakan apa pun yang ada di pikiranmu.',
 ];
 const pickGreeting = () => GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
-export function useChat(): UseChatReturn {
+export function useChat(initialSessionId?: string): UseChatReturn {
   const [messages, setMessages]         = useState<Message[]>([]);
   const [inputText, setInputText]       = useState('');
   const [isTyping, setIsTyping]         = useState(false);
@@ -49,24 +52,65 @@ export function useChat(): UseChatReturn {
   const [quickReplies, setQuickReplies] = useState(QUICK_REPLIES.initial);
   const [showQuickReplies, setShowQuickReplies] = useState(true);
   const [isHighRisk, setIsHighRisk]     = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isSending, setIsSending]       = useState(false);
+  const [expression, setExpression]     = useState<Expression>('menyapa');
 
-  const sessionId      = useRef(generateSessionId()).current;
+  const toast = useToast();
+  const sessionIdRef      = useRef(initialSessionId || generateSessionId());
   const sendBtnScale   = useRef(new Animated.Value(1)).current;
   const abortStreamRef = useRef<(() => void) | null>(null);
+
+  // Keep sessionIdRef in sync with initialSessionId prop changes
+  useEffect(() => {
+    if (initialSessionId) {
+      sessionIdRef.current = initialSessionId;
+    }
+  }, [initialSessionId]);
+
+  const sessionId = sessionIdRef.current;
 
   // ── Add AI message ─────────────────────────────────────────────
   const addAI = useCallback((text: string) => {
     setMessages((prev) => [
       ...prev,
-      { id: `ai-${Date.now()}`, text, sender: 'ai', timestamp: new Date() },
+      { id: `ai-${Date.now()}`, text, sender: 'ai', timestamp: new Date(), expression: 'menyapa' },
     ]);
   }, []);
 
-  // ── Greeting on mount ──────────────────────────────────────────
+  // ── Greeting or History on mount ───────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => addAI(pickGreeting()), 600);
-    return () => clearTimeout(t);
-  }, [addAI]);
+    if (initialSessionId) {
+      setIsLoadingHistory(true);
+      apiGetChatHistory(initialSessionId)
+        .then((res) => {
+          let lastReaction: Expression = 'senang';
+          const histMessages: Message[] = res.messages.map((m: any): Message => {
+            const isUser = m.role === 'user';
+            if (isUser) lastReaction = reactToUserMessage(m.content, lastReaction);
+            return {
+              id: m.id || `hist-${m.created_at}`,
+              text: m.content,
+              sender: isUser ? 'user' : 'ai',
+              timestamp: new Date(m.created_at),
+              expression: isUser ? undefined : (m.route_used === 'guardrail' ? 'tenang' : lastReaction),
+            };
+          });
+          setMessages(histMessages);
+          setExpression(lastReaction);
+        })
+        .catch(err => {
+          console.error("Failed to load chat history:", err);
+          toast.show('Riwayat percakapan ini belum bisa dimuat.', 'error');
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      const t = setTimeout(() => addAI(pickGreeting()), 600);
+      return () => clearTimeout(t);
+    }
+  }, [addAI, initialSessionId]);
 
   // ── Abort stream on unmount ────────────────────────────────────
   useEffect(() => {
@@ -78,6 +122,7 @@ export function useChat(): UseChatReturn {
     const level = analyzeStress(messages);
     setStressLevel(level);
 
+    // Trigger alert when stress goes high
     if (level >= 7 && !alertTriggered) {
       const t = setTimeout(() => {
         setShowAlert(true);
@@ -85,12 +130,19 @@ export function useChat(): UseChatReturn {
       }, 900);
       return () => clearTimeout(t);
     }
+
+    // Reset alertTriggered when stress drops below threshold
+    if (level < 7 && alertTriggered) {
+      setAlertTriggered(false);
+    }
   }, [messages, alertTriggered]);
 
-  // ── Upgrade quick replies on mid-stress ───────────────────────
+  // ── Upgrade/downgrade quick replies on stress change ───────────────────────
   useEffect(() => {
     if (stressLevel >= 4 && messages.length > 3) {
       setQuickReplies(QUICK_REPLIES.mid);
+    } else if (stressLevel < 4) {
+      setQuickReplies(QUICK_REPLIES.initial);
     }
   }, [stressLevel, messages.length]);
 
@@ -98,31 +150,51 @@ export function useChat(): UseChatReturn {
   // ── Send message → SSE stream ─────────────────────────────────
   const sendMessage = useCallback(
     (text: string) => {
-      if (!text.trim()) return;
+      const trimmed = text.trim();
+      if (!trimmed) return;
 
-      // Abort any existing stream
+      // Abort previous in-flight stream so we can start fresh with the latest message
       abortStreamRef.current?.();
 
       const userMsg: Message = {
-        id: `user-${Date.now()}`,
-        text: text.trim(),
+        id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        text: trimmed,
         sender: 'user',
         timestamp: new Date(),
       };
 
-      // Create empty AI placeholder that we'll fill token-by-token
-      const aiMsgId = `ai-${Date.now()}`;
+      // Create new empty AI placeholder for the response
+      const aiMsgId = `ai-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      // The companion reacts to what the user said right away
+      const reaction = reactToUserMessage(trimmed, expression);
+      setExpression(reaction);
+
       const aiPlaceholder: Message = {
         id: aiMsgId,
         text: '',
         sender: 'ai',
         timestamp: new Date(),
+        expression: reaction,
       };
 
-      setMessages((prev) => [...prev, userMsg, aiPlaceholder]);
+      // Clean existing messages: keep any previous message that has text
+      const previousValidMessages = messages.filter(
+        (m) => !(m.sender === 'ai' && m.text.trim() === '')
+      );
+
+      // Construct history array from all prior messages for LLM context
+      const historyPayload = previousValidMessages
+        .filter((m) => m.text.trim().length > 0)
+        .map((m) => ({
+          role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+          content: m.text,
+        }));
+
+      setMessages([...previousValidMessages, userMsg, aiPlaceholder]);
       setInputText('');
       setIsTyping(true);
       setShowQuickReplies(false);
+      setIsSending(true);
 
       // Send button bounce
       Animated.sequence([
@@ -130,11 +202,15 @@ export function useChat(): UseChatReturn {
         Animated.spring(sendBtnScale, { toValue: 1, useNativeDriver: true }),
       ]).start();
 
-      // Start SSE stream
+      // Start SSE stream with full history
       const abort = apiChatStream(
-        { message: text.trim(), session_id: sessionId },
-        // onToken: append token to AI message in-place
+        {
+          message: trimmed,
+          session_id: sessionId,
+          history: historyPayload,
+        },
         (token) => {
+          setIsTyping(false); // Hide typing dots once first token arrives
           setMessages((prev) =>
             prev.map((m) =>
               m.id === aiMsgId ? { ...m, text: m.text + token } : m
@@ -145,7 +221,13 @@ export function useChat(): UseChatReturn {
         (meta) => {
           setIsTyping(false);
           setShowQuickReplies(true);
+          setIsSending(false);
           abortStreamRef.current = null;
+          if (meta.is_high_risk || meta.route === 'guardrail') {
+            // Crisis: never leave a playful face on screen
+            setExpression('tenang');
+            setMessages((prev) => prev.map((m) => (m.id === aiMsgId ? { ...m, expression: 'tenang' } : m)));
+          }
           if (meta.is_high_risk) {
             setIsHighRisk(true);
             setShowAlert(true);
@@ -153,32 +235,52 @@ export function useChat(): UseChatReturn {
           }
         },
         // onError: fallback message
-        () => {
+        (err) => {
+          console.error('Chat stream error:', err);
+          toast.show('Sajiwa belum bisa membalas. Periksa koneksimu lalu coba kirim lagi.', 'error');
           setMessages((prev) =>
             prev.map((m) =>
               m.id === aiMsgId
-                ? { ...m, text: 'Maaf, aku sedang tidak bisa dihubungi. Coba lagi sebentar ya 🙏' }
+                ? { ...m, text: m.text || 'Maaf, aku sedang tidak bisa dihubungi. Coba lagi sebentar ya.', expression: 'bingung' }
                 : m
             )
           );
           setIsTyping(false);
           setShowQuickReplies(true);
+          setIsSending(false);
           abortStreamRef.current = null;
         },
+        {
+          maxRetries: 3,
+          baseRetryDelayMs: 1000,
+          onRetry: (attempt, error) => {
+            console.warn(`Chat stream retry ${attempt}/3:`, error.message);
+          },
+        }
       );
 
       abortStreamRef.current = abort;
     },
-    [sendBtnScale, sessionId]
+    [sendBtnScale, sessionId, messages, expression]
   );
 
   // ── Report confirmed ──────────────────────────────────────────
-  const confirmReport = useCallback(() => {
+  // Actually notify the team (logged as an unread safety signal on the counselor dashboard).
+  // Never claim it was sent unless the server confirmed it.
+  const confirmReport = useCallback(async () => {
     setShowAlert(false);
-    addAI(
-      '🔔 Informasimu telah dikirim ke tim Sanctuary. Seseorang akan menghubungimu. Kamu tidak sendirian 💙'
-    );
-  }, [addAI]);
+    setExpression('tenang');
+    try {
+      await apiReportToTeam(sessionIdRef.current);
+      toast.show('Tim Sajiwa sudah dikabari.');
+      addAI(
+        'Kabarmu sudah diteruskan ke tim Sajiwa dan akan ditinjau oleh konselor. Sambil menunggu, ' +
+        'kamu tetap bisa menghubungi hotline kapan saja. Kamu tidak sendirian.'
+      );
+    } catch {
+      toast.show('Kabar belum terkirim. Kalau mendesak, hubungi hotline langsung dari tombol telepon.', 'error');
+    }
+  }, [addAI, toast]);
 
   return {
     messages,
@@ -188,6 +290,8 @@ export function useChat(): UseChatReturn {
     stressLevel,
     showAlert,
     closeAlert: () => setShowAlert(false),
+    setShowAlert,
+    setAlertTriggered,
     quickReplies,
     showQuickReplies,
     sendMessage,
@@ -195,6 +299,8 @@ export function useChat(): UseChatReturn {
     sendBtnScale,
     sessionId,
     isHighRisk,
+    isLoadingHistory,
+    expression,
   };
 }
 

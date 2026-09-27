@@ -1,28 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Animated,
-  Dimensions,
-  TextInput,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, Alert, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 
-import { BottomNav, FadeIn } from '../components/ui';
-import { useTheme } from '@prototype/ui-shared';
-import { Spacing, BorderRadius } from '@prototype/ui-shared';
-import { apiSaveJournal } from '@prototype/api-client';
-
-
-const { width } = Dimensions.get('window');
+import { BottomNav, FadeIn, NeuView, Button, IconButton, useToast } from '../components/ui';
+import { Companion } from '../components/chat';
+import { MoodPicker } from '../components/MoodPicker';
+import { useTheme, useAuth, Neu, Spacing } from '@prototype/ui-shared';
+import { apiSaveJournal, apiGetJournals } from '@prototype/api-client';
+import type { Expression } from '@prototype/utils';
+import { MOODS, Mood, moodColor, MOOD_COMPANION } from '../constants/moods';
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -32,495 +20,482 @@ const getGreeting = () => {
   return 'Selamat malam';
 };
 
+// Companion's opening face follows the time of day
+const timeFace = (): Expression => {
+  const h = new Date().getHours();
+  if (h < 11) return 'semangat';
+  if (h < 18) return 'menyapa';
+  if (h < 22) return 'senang';
+  return 'mengantuk';
+};
+
+
 const formatDate = () =>
-  new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const [selectedMood, setSelectedMood] = useState<number | null>(null);
+  const { user } = useAuth();
+  const toast = useToast();
+  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [journalText, setJournalText] = useState('');
   const [isSavingJournal, setIsSavingJournal] = useState(false);
+  const [journals, setJournals] = useState<any[]>([]);
+  const [face, setFace] = useState<Expression>(timeFace);
+
+  const fetchJournals = useCallback(async () => {
+    try {
+      const res = await apiGetJournals(30, 0);
+      setJournals(res.journals || []);
+    } catch (err) {
+      console.warn('Failed to load journals for home:', err);
+      toast.show('Data jurnal belum bisa dimuat. Periksa koneksimu.', 'error');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchJournals();
+  }, [fetchJournals]);
+
+  const pickMood = (m: Mood) => {
+    setSelectedMood(m);
+    setFace(MOOD_COMPANION[m].face);
+  };
 
   const handleSaveJournal = async () => {
-    if (!journalText.trim()) return;
+    if (!journalText.trim() || !selectedMood) {
+      toast.show('Pilih suasana hati dan tulis sedikit dulu, ya.', 'info');
+      return;
+    }
     setIsSavingJournal(true);
     try {
-      await apiSaveJournal({ content: journalText });
-      Alert.alert('Tersimpan', 'Jurnal kamu berhasil disimpan.');
+      await apiSaveJournal({ content: journalText, mood: selectedMood });
+      toast.show('Jurnal tersimpan.');
       setJournalText('');
+      setSelectedMood(null);
+      setFace('jempol');
+      await fetchJournals();
     } catch (err: any) {
-      Alert.alert('Gagal', err.message || 'Gagal menyimpan jurnal.');
+      toast.show(`Jurnal belum tersimpan: ${err.message || 'coba lagi sebentar.'}`, 'error');
     } finally {
       setIsSavingJournal(false);
     }
   };
 
-  const calmW  = useRef(new Animated.Value(0)).current;
-  const focusW = useRef(new Animated.Value(0)).current;
+  const weeklyData = useMemo(() => {
+    const daysShort = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    const today = new Date();
+    const daysList = [];
+    const counts: Record<string, number> = { Calm: 0, Focused: 0, Tired: 0, Anxious: 0 };
+    let totalRecorded = 0;
 
-  useEffect(() => {
-    Animated.delay(600).start(() => {
-      Animated.parallel([
-        Animated.timing(calmW,  { toValue: 0.85, duration: 900, useNativeDriver: false }),
-        Animated.timing(focusW, { toValue: 0.64, duration: 900, useNativeDriver: false }),
-      ]).start();
-    });
-  }, []);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const isToday = i === 0;
 
-  const cardW = (width - Spacing.base * 2 - Spacing.base) / 2;
+      const dayJournals = journals.filter((j: any) => j.created_at?.startsWith(dateStr));
+      let dominantMood: Mood | null = null;
+      let score = 0;
 
-  // Navigation menu items
+      if (dayJournals.length > 0) {
+        const dayCounts: Record<string, number> = {};
+        dayJournals.forEach((j: any) => {
+          if (j.mood) {
+            dayCounts[j.mood] = (dayCounts[j.mood] || 0) + 1;
+            if (counts[j.mood] !== undefined) {
+              counts[j.mood]++;
+              totalRecorded++;
+            }
+          }
+        });
+        dominantMood = Object.keys(dayCounts).sort((a, b) => dayCounts[b] - dayCounts[a])[0] as any;
+        if (dominantMood === 'Calm') score = 95;
+        else if (dominantMood === 'Focused') score = 80;
+        else if (dominantMood === 'Tired') score = 55;
+        else if (dominantMood === 'Anxious') score = 35;
+      }
+
+      daysList.push({ dayName: isToday ? 'Hari ini' : daysShort[d.getDay()], isToday, mood: dominantMood, score });
+    }
+
+    let dominantTendency = 'Belum ada data';
+    let tendencyColor = colors.primary;
+    let tendencyIcon: any = 'leaf-outline';
+    let tendencyInsight = 'Mulai catat perasaanmu di jurnal harian di atas untuk melihat dinamika emosimu.';
+
+    if (totalRecorded > 0) {
+      const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] > 0) {
+        tendencyColor = moodColor(top[0])!;
+        if (top[0] === 'Calm') {
+          dominantTendency = 'Cenderung tenang';
+          tendencyIcon = 'leaf-outline';
+          tendencyInsight = 'Kondisi emosimu cenderung stabil dan damai dalam 7 hari ini. Teruskan ritme positif ini!';
+        } else if (top[0] === 'Focused') {
+          dominantTendency = 'Fokus & terarah';
+          tendencyIcon = 'disc-outline';
+          tendencyInsight = 'Pikiranmu produktif dan jernih. Jangan lupa sisihkan waktu rehat di sela aktivitas.';
+        } else if (top[0] === 'Tired') {
+          dominantTendency = 'Cenderung lelah';
+          tendencyIcon = 'battery-half-outline';
+          tendencyInsight = 'Ada tanda kelelahan fisik/mental yang terkumpul. Prioritaskan tidur cukup malam ini.';
+        } else if (top[0] === 'Anxious') {
+          dominantTendency = 'Cenderung cemas';
+          tendencyIcon = 'cloud-outline';
+          tendencyInsight = 'Kecemasanmu sedang meningkat. Coba latihan napas atau ceritakan ke Sajiwa.';
+        }
+      }
+    }
+
+    return { daysList, counts, totalRecorded, dominantTendency, tendencyColor, tendencyIcon, tendencyInsight };
+  }, [journals, colors]);
+
   const navItems = [
-    { icon: 'chatbubble-outline', label: 'Chat', route: '/chat' },
-    { icon: 'water-outline', label: 'Mood', route: '/home' },
-    { icon: 'target-outline', label: 'Goal', route: '/stats' },
-    { icon: 'moon-outline', label: 'Night', route: '/home' },
+    { icon: 'time-outline', label: 'Riwayat Chat', route: '/chat-history' },
+    { icon: 'book-outline', label: 'Jurnal', route: '/journal-history' },
+    { icon: 'stats-chart-outline', label: 'Laporan', route: '/stats' },
+    { icon: 'call-outline', label: 'Hotline', route: '/hotline' },
   ];
+
+  const canSave = !!journalText.trim() && !!selectedMood;
+  const chartLabel =
+    'Grafik suasana hati 7 hari: ' +
+    weeklyData.daysList
+      .map((d) => d.dayName + ' ' + (MOODS.find((m) => m.key === d.mood)?.label ?? 'tidak ada catatan'))
+      .join(', ');
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 72 }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
       >
-        {/* ── Greeting ── */}
+        {/* ── Header: greeting + avatar, then this week's mood strip ── */}
         <FadeIn delay={0}>
-          <View style={s.greetRow}>
-            <View style={s.greetLeft}>
-              <Text style={[s.greetTitle, { color: colors.onSurface }]}>
-                {getGreeting()}, Luffy
-              </Text>
-              <Text style={[s.greetSub, { color: colors.onSurfaceVariant }]}>
-                A quiet space for your thoughts to settle.
+          <View style={s.header}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.greetDate, { color: colors.onSurfaceVariant }]}>{formatDate()}</Text>
+              <Text style={[s.greetTitle, { color: colors.onSurface }]} accessibilityRole="header" numberOfLines={2}>
+                {getGreeting()}{user?.nama ? `, ${user.nama.split(' ')[0]}` : ''}
               </Text>
             </View>
-          </View>
-        </FadeIn>
-
-        {/* ── Navigation Icons ── */}
-        <FadeIn delay={80}>
-          <View style={s.navIconsRow}>
-            {navItems.map((item, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[s.navIconBtn, { backgroundColor: colors.surfaceContainerHigh }]}
-                onPress={() => router.push(item.route)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name={item.icon as any} size={24} color={colors.primary} />
-                <Text style={[s.navIconLabel, { color: colors.onSurface }]}>
-                  {item.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </FadeIn>
-
-        {/* ── Main CTA: Enter the Dialogue ── */}
-        <FadeIn delay={160}>
-          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/chat')} style={s.dialogWrap}>
-            <LinearGradient
-              colors={['#496175', '#3d5569']}
-              style={s.dialogCard}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <Pressable
+              onPress={() => router.push('/profile')}
+              accessibilityRole="button"
+              accessibilityLabel="Profil"
+              style={({ pressed }) => [s.navAvatar, { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raisedSm }]}
             >
-              <View style={s.dialogBlobLarge} />
-              <View style={s.dialogBlobSmall} />
-              <View style={s.dialogText}>
-                <Text style={s.dialogTitle}>Enter the Dialogue</Text>
-                <Text style={s.dialogDesc}>
-                  Your AI companion listens to your thoughts and guides you through challenges.
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={s.dialogBtn}
-                onPress={() => router.push('/chat')}
-                activeOpacity={0.85}
-              >
-                <Text style={[s.dialogBtnText, { color: colors.primary }]}>Start Conversation →</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </TouchableOpacity>
-        </FadeIn>
+              <Text style={[s.navAvatarText, { color: colors.primary }]}>
+                {user?.nama?.trim()?.[0]?.toUpperCase() ?? 'S'}
+              </Text>
+            </Pressable>
+          </View>
 
-        {/* ── Quotes Section 1 ── */}
-        <FadeIn delay={200}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>MINDFUL QUOTE</Text>
-            <View style={s.quoteBgWrapper}>
-              <Ionicons
-                name="quotes"
-                size={64}
-                color={colors.primary + '15'}
-                style={s.quoteBgIcon}
-              />
-              <Text style={[s.quoteText, { color: colors.onSurface }]}>
-                "The soul always knows what to do to heal itself. The challenge is to silence the mind."
+          <NeuView inset radius={20} style={s.weekStrip}>
+            <View style={s.weekHead}>
+              <Text style={[s.weekTitle, { color: colors.onSurface }]}>Minggu ini</Text>
+              <Text style={[s.weekMeta, { color: colors.onSurfaceVariant }]}>
+                {weeklyData.totalRecorded > 0 ? `${weeklyData.totalRecorded} check-in` : 'Belum ada check-in'}
               </Text>
             </View>
-            <Text style={[s.quoteAuthor, { color: colors.primary }]}>— CAROLINE MYSS</Text>
-          </View>
-        </FadeIn>
-
-        {/* ── Self-Journaling Section ── */}
-        {/* ── Self-Journaling Section ── */}
-        <FadeIn delay={240}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest, padding: 0, overflow: 'hidden' }]}>
-            <View style={{ padding: 24 }}>
-              <TouchableOpacity 
-                activeOpacity={0.7} 
-                onPress={() => router.push('/journal')}
-                style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}
-              >
-                <View style={{ flex: 1, paddingRight: 16 }}>
-                  <Text style={[s.sectionEyebrow, { color: colors.outline, marginBottom: 4 }]}>SELF-JOURNALING</Text>
-                  <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', color: colors.onSurfaceVariant, lineHeight: 20 }}>
-                    Jernihkan pikiranmu melalui tulisan hari ini.
-                  </Text>
-                </View>
-                <MaterialIcons name="edit-note" size={28} color={colors.outline + '80'} />
-              </TouchableOpacity>
-
-              <View style={{ position: 'relative', marginBottom: 24 }}>
-                <TextInput
-                  style={[
-                    s.journalInput,
-                    {
-                      backgroundColor: colors.surfaceContainerLow,
-                      color: colors.onSurface,
-                    }
-                  ]}
-                  placeholderTextColor={colors.outlineVariant}
-                  placeholder="Apa yang sedang kamu pikirkan?"
-                  multiline
-                  textAlignVertical="top"
-                  value={journalText}
-                  onChangeText={setJournalText}
-                />
-                <View style={{ position: 'absolute', bottom: 12, right: 16 }}>
-                  <Text style={{ fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold', color: colors.outline, letterSpacing: 1, textTransform: 'uppercase' }}>
-                    Auto-save aktif
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
-                <View style={[s.journalTipIcon, { backgroundColor: colors.primary + '15' }]}>
-                  <MaterialIcons name="auto-awesome" size={16} color={colors.primary} />
-                </View>
-                <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium', color: colors.onSurfaceVariant, flex: 1, marginLeft: 12, lineHeight: 16 }}>
-                  Menulis teratur dapat menurunkan tingkat stres hingga 30%.
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                style={[s.journalBtn, { backgroundColor: colors.primary, opacity: journalText.trim() ? 1 : 0.5, width: '100%' }]}
-                onPress={handleSaveJournal}
-                disabled={!journalText.trim() || isSavingJournal}
-              >
-                {isSavingJournal ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={s.journalBtnText}>Simpan Jurnal</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </FadeIn>
-
-        {/* ── Quotes Section 2 ── */}
-        <FadeIn delay={280}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-            <View style={s.quoteBgWrapper}>
-              <Ionicons
-                name="quotes"
-                size={64}
-                color={colors.primary + '15'}
-                style={s.quoteBgIcon}
-              />
-              <Text style={[s.quoteText, { color: colors.onSurface }]}>
-                "Tidak ada apa-apa untuk berteriak. Bunga pun butuh waktu untuk mekar kembali."
-              </Text>
-            </View>
-            <Text style={[s.quoteAuthor, { color: colors.primary }]}>— STEPHEN LEVINE</Text>
-          </View>
-        </FadeIn>
-
-        {/* ── Progress Section ── */}
-        <FadeIn delay={320}>
-          <View style={[s.card, { backgroundColor: colors.surfaceContainerLowest }]}>
-            <Text style={[s.sectionEyebrow, { color: colors.outline }]}>PROGRESS PERAKUAN</Text>
-
-            {[
-              { label: 'Ketenangan', anim: calmW, pct: '85%' },
-              { label: 'Fokus/Hubungan', anim: focusW, pct: '64%' },
-            ].map((item, i) => (
-              <View key={i} style={[s.progressItem, i > 0 && { marginTop: Spacing.base }]}>
-                <View style={s.progressMeta}>
-                  <Text style={[s.progressLabel, { color: colors.onSurface }]}>{item.label}</Text>
-                  <Text style={[s.progressPct, { color: colors.primary }]}>{item.pct}</Text>
-                </View>
-                <View style={[s.progressTrack, { backgroundColor: colors.surfaceContainerHigh }]}>
-                  <Animated.View
+            <View style={s.weekDays} accessible accessibilityLabel={chartLabel}>
+              {weeklyData.daysList.map((d, i) => (
+                <View key={i} style={s.weekDay}>
+                  <View
                     style={[
-                      s.progressFill,
+                      s.weekDot,
+                      d.mood
+                        ? { backgroundColor: moodColor(d.mood) }
+                        : { backgroundColor: colors.background, boxShadow: Neu.raisedSm },
+                      d.isToday && { borderWidth: 2, borderColor: colors.primary },
+                    ]}
+                  >
+                    {d.mood && <Ionicons name={MOODS.find((m) => m.key === d.mood)!.icon} size={14} color="#fff" />}
+                  </View>
+                  <Text
+                    style={[
+                      s.weekLabel,
                       {
-                        backgroundColor: colors.primary,
-                        width: item.anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+                        color: d.isToday ? colors.primary : colors.onSurfaceVariant,
+                        fontFamily: d.isToday ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_500Medium',
                       },
                     ]}
-                  />
+                  >
+                    {d.dayName}
+                  </Text>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
+          </NeuView>
+        </FadeIn>
 
-            <TouchableOpacity
-              style={[s.reportBtn, { borderColor: colors.outlineVariant + '60' }]}
-              onPress={() => router.push('/stats')}
-              activeOpacity={0.75}
-            >
-              <Text style={[s.reportBtnText, { color: colors.onSurfaceVariant }]}>
-                Lihat Laporan Detail
-              </Text>
-            </TouchableOpacity>
+        {/* ── Main CTA with the companion peeking in ── */}
+        <FadeIn delay={80}>
+          <Pressable
+            onPress={() => router.push('/chat')}
+            accessibilityRole="button"
+            accessibilityLabel="Mulai cerita dengan Sajiwa"
+            style={({ pressed }) => [
+              s.dialogCard,
+              { backgroundColor: colors.primary, boxShadow: Neu.raised },
+              pressed && { transform: [{ scale: 0.98 }] },
+            ]}
+          >
+            <View style={s.dialogBlobLarge} />
+            <View style={s.dialogBlobSmall} />
+            <View style={s.dialogText}>
+              <Text style={s.dialogTitle}>Mulai cerita</Text>
+              <Text style={s.dialogDesc}>Sajiwa siap mendengarkan kapan saja, tanpa menghakimi.</Text>
+              <View style={[s.dialogBtn, { backgroundColor: colors.background }]}>
+                <Text style={[s.dialogBtnText, { color: colors.primary }]}>Mulai percakapan</Text>
+                <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+              </View>
+            </View>
+            <View style={s.dialogCompanion}>
+              <Companion expression={face} size={156} interactive={false} />
+            </View>
+          </Pressable>
+        </FadeIn>
+
+        {/* ── Quick links ── */}
+        <FadeIn delay={160}>
+          <View style={s.navIconsRow}>
+            {navItems.map((item) => (
+              <Pressable
+                key={item.route}
+                onPress={() => router.push(item.route as any)}
+                accessibilityRole="button"
+                accessibilityLabel={item.label}
+                style={({ pressed }) => [
+                  s.navIconBtn,
+                  { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raisedSm },
+                ]}
+              >
+                <Ionicons
+                  name={item.icon as any}
+                  size={22}
+                  color={item.route === '/hotline' ? colors.stressHigh : colors.primary}
+                />
+                <Text style={[s.navIconLabel, { color: colors.onSurface }]} numberOfLines={2}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </FadeIn>
 
-        <View style={{ height: 110 }} />
-      </ScrollView>
+        {/* ── Daily journal ── */}
+        <FadeIn delay={240}>
+          <NeuView radius={24} style={s.card}>
+            <View style={s.cardHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.cardTitle, { color: colors.onSurface }]} accessibilityRole="header">Jurnal harian</Text>
+                <Text style={[s.cardSub, { color: colors.onSurfaceVariant }]}>
+                  Jernihkan pikiranmu lewat tulisan singkat.
+                </Text>
+              </View>
+              <IconButton icon="expand-outline" label="Buka editor jurnal lengkap" color={colors.primary} onPress={() => router.push('/journal')} />
+            </View>
 
-      {/* ── Floating Nav Bar ── */}
-      <View
-        style={[
-          s.navBar,
-          {
-            paddingTop: insets.top + 12,
-            backgroundColor: colors.background + 'E8',
-            borderBottomColor: colors.outlineVariant + '20',
-          }
-        ]}
-      >
-        <View style={[s.navBarInner, { paddingBottom: 12 }]}>
-          <TouchableOpacity style={[s.navAvatar, { backgroundColor: colors.surfaceContainerHigh }]}>
-            <Ionicons name="person" size={15} color={colors.onSurfaceVariant} />
-          </TouchableOpacity>
-          <Text style={[s.navBrand, { color: colors.onSurface }]}>Sanctuary</Text>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity>
-            <Ionicons name="settings-outline" size={22} color={colors.onSurfaceVariant} />
-          </TouchableOpacity>
-        </View>
-      </View>
+            <Text style={[s.fieldLabel, { color: colors.onSurface }]}>Suasana hati</Text>
+            <MoodPicker value={selectedMood} onChange={pickMood} />
+
+            <NeuView inset radius={18}>
+              <TextInput
+                style={[s.journalInput, { color: colors.onSurface }]}
+                placeholderTextColor={colors.textMuted}
+                placeholder="Apa yang sedang kamu pikirkan?"
+                accessibilityLabel="Isi jurnal"
+                multiline
+                textAlignVertical="top"
+                value={journalText}
+                onChangeText={setJournalText}
+              />
+            </NeuView>
+
+            <Button label="Simpan jurnal" onPress={handleSaveJournal} loading={isSavingJournal} disabled={!canSave} />
+            {!canSave && (
+              <Text style={[s.hint, { color: colors.textMuted }]}>
+                Pilih suasana hati dan tulis sedikit untuk menyimpan.
+              </Text>
+            )}
+          </NeuView>
+        </FadeIn>
+
+        {/* ── Affirmation ── */}
+        <FadeIn delay={280}>
+          <NeuView inset radius={24} style={s.quoteCard}>
+            <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
+            <Text style={[s.quoteText, { color: colors.onSurface }]}>
+              Tidak apa-apa untuk beristirahat. Bunga pun butuh waktu untuk mekar kembali.
+            </Text>
+          </NeuView>
+        </FadeIn>
+
+        {/* ── Mood trend ── */}
+        <FadeIn delay={320}>
+          <NeuView radius={24} style={s.card}>
+            <View>
+              <Text style={[s.cardTitle, { color: colors.onSurface }]} accessibilityRole="header">7 hari terakhir</Text>
+              <Text style={[s.cardSub, { color: colors.onSurfaceVariant }]}>
+                {weeklyData.totalRecorded > 0 ? `${weeklyData.totalRecorded} catatan minggu ini` : 'Belum ada catatan'}
+              </Text>
+            </View>
+
+            <NeuView inset radius={18} style={s.insightBox}>
+              <Ionicons name={weeklyData.tendencyIcon} size={22} color={weeklyData.tendencyColor} />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.insightTitle, { color: weeklyData.tendencyColor }]}>{weeklyData.dominantTendency}</Text>
+                <Text style={[s.insightDesc, { color: colors.onSurfaceVariant }]}>{weeklyData.tendencyInsight}</Text>
+              </View>
+            </NeuView>
+
+            <View style={s.barsContainer} accessible accessibilityLabel={chartLabel}>
+              {weeklyData.daysList.map((item, idx) => {
+                const hasData = item.mood !== null;
+                const barHeight = hasData ? Math.max(20, (item.score / 100) * 72) : 0;
+                return (
+                  <View key={idx} style={s.barCol}>
+                    <View style={[s.barTrack, { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
+                      {hasData && <View style={[s.barFill, { height: barHeight, backgroundColor: moodColor(item.mood) }]} />}
+                    </View>
+                    <Text
+                      style={[
+                        s.barDayLabel,
+                        {
+                          color: item.isToday ? colors.primary : colors.onSurfaceVariant,
+                          fontFamily: item.isToday ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_500Medium',
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.dayName}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={s.breakdownRow}>
+              {MOODS.map((m) => (
+                <View key={m.key} style={s.breakdownItem}>
+                  <View style={[s.miniColorDot, { backgroundColor: m.color }]} />
+                  <Text style={[s.breakdownText, { color: colors.onSurfaceVariant }]}>
+                    {m.label} {weeklyData.counts[m.key] || 0}
+                  </Text>
+                </View>
+              ))}
+            </View>
+
+            <Button
+              variant="secondary"
+              label="Lihat laporan lengkap"
+              onPress={() => router.push('/stats')}
+              icon={<Ionicons name="stats-chart-outline" size={16} color={colors.primary} />}
+            />
+          </NeuView>
+        </FadeIn>
+      </ScrollView>
 
       <BottomNav />
     </View>
   );
 }
 
-/* ── Styles ── */
 const s = StyleSheet.create({
-  root:  { flex: 1 },
-  scroll: { paddingHorizontal: Spacing.base },
+  root: { flex: 1 },
+  scroll: { paddingHorizontal: Spacing.lg, gap: Spacing.xl },
 
-  // Nav bar overlay
-  navBar: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    zIndex: 50,
-    borderBottomWidth: 1,
-  },
-  navBarInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    gap: Spacing.sm,
-  },
-  navAvatar: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  navBrand: { fontSize: 18, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.4 },
+  navAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  navAvatarText: { fontSize: 16, fontFamily: 'PlusJakartaSans_800ExtraBold' },
 
-  // Greeting
-  greetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 24,
-    gap: 12,
-  },
-  greetLeft: { flex: 1 },
-  greetTitle: {
-    fontSize: 32,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
-    letterSpacing: -1,
-    lineHeight: 38,
-  },
-  greetSub: {
-    fontSize: 14,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    marginTop: 6,
-  },
-  dateBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    flexShrink: 0,
-  },
-  dateText: { fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold', letterSpacing: 0.2 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  greetDate: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  greetTitle: { fontSize: 26, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.7, lineHeight: 32 },
 
-  // Navigation Icons Row
-  navIconsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 32,
-  },
-  navIconBtn: {
-    flex: 1,
-    height: 100,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    padding: 12,
-  },
-  navIconLabel: {
-    fontSize: 12,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
-    textAlign: 'center',
-  },
+  weekStrip: { padding: 14, gap: 12 },
+  weekHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 2 },
+  weekTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
+  weekMeta: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },
+  weekDays: { flexDirection: 'row', justifyContent: 'space-between' },
+  weekDay: { alignItems: 'center', gap: 6, flex: 1 },
+  weekDot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  weekLabel: { fontSize: 12 },
 
-  // Card base
-  card: {
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 16,
-    shadowColor: '#2b3437',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 3,
-  },
-  sectionEyebrow: {
-    fontSize: 10,
-    fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
-    marginBottom: 16,
-  },
-
-  // Dialogue CTA
-  dialogWrap: { marginBottom: 24 },
+  // Dialogue CTA: text on the left, companion standing on the card's bottom edge on the right
   dialogCard: {
-    borderRadius: 24,
-    padding: 28,
-    flexDirection: 'column',
-    gap: 16,
+    borderRadius: 28,
+    paddingLeft: 24,
+    paddingTop: 24,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     overflow: 'hidden',
-    shadowColor: '#496175',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
   },
   dialogBlobLarge: {
     position: 'absolute',
     width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    top: -60, right: -40,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: -70, right: -50,
   },
   dialogBlobSmall: {
     position: 'absolute',
-    width: 100, height: 100, borderRadius: 50,
+    width: 110, height: 110, borderRadius: 55,
     backgroundColor: 'rgba(255,255,255,0.05)',
-    bottom: -30, left: 80,
+    bottom: -40, left: 120,
   },
-  dialogText: { gap: 12, zIndex: 1 },
-  dialogTitle: {
-    fontSize: 22,
-    fontFamily: 'PlusJakartaSans_800ExtraBold',
-    color: '#ffffff',
-    letterSpacing: -0.5,
-  },
-  dialogDesc: {
-    fontSize: 13,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 20,
-  },
+  dialogText: { flex: 1, gap: 8, paddingBottom: 24, minWidth: 0 },
+  dialogTitle: { fontSize: 24, fontFamily: 'PlusJakartaSans_800ExtraBold', color: '#ffffff', letterSpacing: -0.5 },
+  dialogDesc: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', color: 'rgba(255,255,255,0.88)', lineHeight: 21 },
   dialogBtn: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 44,
+    paddingHorizontal: 16,
     borderRadius: 999,
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: 6,
   },
-  dialogBtnText: { fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
+  dialogBtnText: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
+  dialogCompanion: { marginBottom: -18, marginRight: -14, marginLeft: -12 },
 
-  // Quote
-  quoteBgWrapper: {
-    position: 'relative',
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  quoteBgIcon: {
-    position: 'absolute',
-    top: -20, right: -10,
-    opacity: 0.15,
-  },
-  quoteText: {
-    fontSize: 16,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
-    lineHeight: 24,
-    marginBottom: 0,
-    zIndex: 1,
-  },
-  quoteAuthor: {
-    fontSize: 12,
-    fontFamily: 'PlusJakartaSans_700Bold',
-    letterSpacing: 0.5,
-  },
-
-  // Inspirational text
-  inspirationalText: {
-    fontSize: 14,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-
-  // Progress section
-  progressItem: {},
-  progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  progressLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
-  progressPct:   { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
-  progressTrack: { height: 6, borderRadius: 999, overflow: 'hidden' },
-  progressFill:  { height: '100%', borderRadius: 999 },
-  reportBtn: {
-    marginTop: 18, borderWidth: 1, borderRadius: 16,
-    paddingVertical: 12, alignItems: 'center',
-  },
-  reportBtnText: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
-
-  // Journal Button & Input
-  journalBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
-  journalBtnText: { color: '#fff', fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
-  journalInput: {
-    height: 100,
-    borderRadius: 16,
-    padding: 16,
-    fontSize: 13,
-    fontFamily: 'PlusJakartaSans_500Medium',
-  },
-  journalTipIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  navIconsRow: { flexDirection: 'row', gap: 12 },
+  navIconBtn: {
+    flex: 1,
+    minHeight: 88,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    padding: 8,
   },
-});
+  navIconLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', textAlign: 'center' },
 
+  card: { padding: 20, gap: 16 },
+  cardHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  cardTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.3 },
+  cardSub: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 20, marginTop: 2 },
+  fieldLabel: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', marginBottom: -4 },
+  hint: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center', marginTop: -6 },
+
+  journalInput: { minHeight: 120, padding: 16, fontSize: 15, lineHeight: 22, fontFamily: 'PlusJakartaSans_400Regular' },
+
+  quoteCard: { padding: 20, gap: 10 },
+  quoteText: { fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 25 },
+
+  insightBox: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 12 },
+  insightTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 2 },
+  insightDesc: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 20 },
+  barsContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 4 },
+  barCol: { flex: 1, alignItems: 'center', gap: 8 },
+  barTrack: { width: 22, height: 80, borderRadius: 11, justifyContent: 'flex-end', overflow: 'hidden' },
+  barFill: { width: '100%', borderRadius: 11 },
+  barDayLabel: { fontSize: 12 },
+  breakdownRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, justifyContent: 'center' },
+  breakdownItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  miniColorDot: { width: 8, height: 8, borderRadius: 4 },
+  breakdownText: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },
+});
