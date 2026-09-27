@@ -7,7 +7,7 @@
   ],
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
-    "expo-asset": "^55.0.17",
+    "expo-asset": "~57.0.18",
     "semver": "^7.7.4"
   }
 }

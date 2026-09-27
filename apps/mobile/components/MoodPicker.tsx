@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { MOODS, Mood } from '../constants/moods';
+import { PressableScale } from './ui';
 
 interface Props {
   value: Mood | null;
@@ -18,7 +19,7 @@ export const MoodPicker: React.FC<Props> = ({ value, onChange }) => {
         const selected = value === m.key;
         const tint = selected ? m.color : colors.onSurfaceVariant;
         return (
-          <Pressable
+          <PressableScale
             key={m.key}
             onPress={() => onChange(m.key)}
             accessibilityRole="radio"
@@ -35,7 +36,7 @@ export const MoodPicker: React.FC<Props> = ({ value, onChange }) => {
             >
               {m.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

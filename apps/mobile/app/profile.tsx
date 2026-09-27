@@ -12,6 +12,7 @@ import {
 import { Companion } from '../components/chat';
 import { useTheme, useAuth, Neu, Spacing } from '@prototype/ui-shared';
 import { moodOf } from '../constants/moods';
+import { PressableScale } from '../components/ui';
 
 type Booking = {
   status: string;
@@ -95,7 +96,7 @@ export default function ProfileScreen() {
 
   const tiles = [
     { icon: 'chatbubbles-outline', value: String(sessions), label: 'sesi percakapan', color: colors.primary, to: '/chat-history' },
-    { icon: 'book-outline', value: String(journals.length), label: 'catatan jurnal', color: colors.primary, to: '/journal-history' },
+    { icon: 'book-outline', value: String(journals.length), label: 'catatan jurnal', color: colors.sage, to: '/journal-history' },
     { icon: 'flame-outline', value: String(journey.streak), label: 'hari menulis berturut-turut', color: colors.stressMid, to: '/journal-history' },
     journey.topMood
       ? { icon: journey.topMood.icon, value: journey.topMood.label, label: 'suasana paling sering', color: journey.topMood.color, to: '/stats' }
@@ -107,14 +108,14 @@ export default function ProfileScreen() {
       title: 'Aktivitas',
       items: [
         { icon: 'time-outline', label: 'Riwayat chat', to: '/chat-history' },
-        { icon: 'book-outline', label: 'Jurnal', to: '/journal-history' },
+        { icon: 'book-outline', label: 'Jurnal', to: '/journal-history', color: colors.sage },
         { icon: 'stats-chart-outline', label: 'Laporan mingguan', to: '/stats' },
       ],
     },
     {
       title: 'Bantuan',
       items: [
-        { icon: 'calendar-outline', label: 'Konseling', to: '/schedule' },
+        { icon: 'calendar-outline', label: 'Konseling', to: '/schedule', color: colors.amber },
         { icon: 'call-outline', label: 'Hotline darurat', to: '/hotline', danger: true },
       ],
     },
@@ -129,7 +130,7 @@ export default function ProfileScreen() {
         <ScreenHeader title="Profil" />
 
         {/* ── Identity, with the companion beside you ── */}
-        <FadeIn delay={0}>
+        <FadeIn>
           <NeuView radius={28} style={s.identity}>
             <View style={[s.avatar, { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
               <Text style={[s.avatarText, { color: colors.primary }]}>{initials}</Text>
@@ -141,17 +142,17 @@ export default function ProfileScreen() {
               </Text>
               {joinedLabel && <Text style={[s.joined, { color: colors.textMuted }]}>{joinedLabel}</Text>}
             </View>
-            <Companion expression="senang" size={84} />
+            <Companion expression="senang" size={108} />
           </NeuView>
         </FadeIn>
 
         {/* ── Your journey ── */}
-        <FadeIn delay={80}>
+        <FadeIn>
           <View style={{ gap: 12 }}>
             <Text style={[s.sectionTitle, { color: colors.onSurface }]} accessibilityRole="header">Perjalananmu</Text>
             <View style={s.grid}>
               {tiles.map((t) => (
-                <Pressable
+                <PressableScale
                   key={t.label}
                   onPress={() => router.push(t.to as any)}
                   accessibilityRole="button"
@@ -159,11 +160,11 @@ export default function ProfileScreen() {
                   style={({ pressed }) => [s.tile, { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raisedSm }]}
                 >
                   <Ionicons name={t.icon as any} size={20} color={t.color} />
-                  <Text style={[s.tileValue, { color: t.color === colors.primary ? colors.onSurface : t.color }]} numberOfLines={1}>
+                  <Text style={[s.tileValue, { color: t.color === colors.primary || t.color === colors.sage ? colors.onSurface : t.color }]} numberOfLines={1}>
                     {t.value}
                   </Text>
                   <Text style={[s.tileLabel, { color: colors.onSurfaceVariant }]} numberOfLines={2}>{t.label}</Text>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           </View>
@@ -171,13 +172,13 @@ export default function ProfileScreen() {
 
         {/* ── Next counseling session (only when there is one) ── */}
         {nextSession?.jadwal_konsultasi && (
-          <FadeIn delay={140}>
-            <Pressable
+          <FadeIn>
+            <PressableScale
               onPress={() => router.push('/schedule')}
               accessibilityRole="button"
               style={({ pressed }) => [s.session, { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raised }]}
             >
-              <View style={[s.sessionDate, { backgroundColor: colors.primary }]}>
+              <View style={[s.sessionDate, { backgroundColor: colors.amberFill }]}>
                 <Text style={s.sessionDay}>{new Date(nextSession.jadwal_konsultasi.tanggal).getDate()}</Text>
                 <Text style={s.sessionMonth}>
                   {new Date(nextSession.jadwal_konsultasi.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
@@ -194,27 +195,27 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </Pressable>
+            </PressableScale>
           </FadeIn>
         )}
 
         {/* ── Menu ── */}
         {groups.map((g, gi) => (
-          <FadeIn key={g.title} delay={200 + gi * 60}>
+          <FadeIn key={g.title}>
             <View style={{ gap: 10 }}>
               <Text style={[s.groupTitle, { color: colors.onSurfaceVariant }]}>{g.title}</Text>
               <NeuView radius={24} style={s.menuCard}>
                 {g.items.map((item) => (
-                  <Pressable
+                  <PressableScale
                     key={item.label}
                     onPress={() => router.push(item.to as any)}
                     accessibilityRole="button"
                     style={({ pressed }) => [s.menuItem, pressed && { backgroundColor: colors.background, boxShadow: Neu.inset }]}
                   >
-                    <Ionicons name={item.icon as any} size={20} color={(item as any).danger ? colors.stressHigh : colors.primary} />
+                    <Ionicons name={item.icon as any} size={20} color={(item as any).color ?? ((item as any).danger ? colors.stressHigh : colors.primary)} />
                     <Text style={[s.menuLabel, { color: colors.onSurface }]}>{item.label}</Text>
                     <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </Pressable>
+                  </PressableScale>
                 ))}
               </NeuView>
             </View>
@@ -222,7 +223,7 @@ export default function ProfileScreen() {
         ))}
 
         {/* ── Privacy, stated honestly ── */}
-        <FadeIn delay={320}>
+        <FadeIn>
           <NeuView inset radius={20} style={s.privacy}>
             <Ionicons name="lock-closed-outline" size={18} color={colors.primary} />
             <Text style={[s.privacyText, { color: colors.onSurfaceVariant }]}>
@@ -232,7 +233,7 @@ export default function ProfileScreen() {
           </NeuView>
         </FadeIn>
 
-        <FadeIn delay={360}>
+        <FadeIn>
           <Button
             label="Keluar"
             variant="secondary"
@@ -280,8 +281,8 @@ const s = StyleSheet.create({
 
   session: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 24 },
   sessionDate: { width: 56, height: 60, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  sessionDay: { fontSize: 22, fontFamily: 'PlusJakartaSans_800ExtraBold', color: '#fff', lineHeight: 26 },
-  sessionMonth: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', color: 'rgba(255,255,255,0.85)' },
+  sessionDay: { fontSize: 22, fontFamily: 'PlusJakartaSans_800ExtraBold', color: '#1C2447', lineHeight: 26 },
+  sessionMonth: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold', color: '#1C2447' },
   sessionLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   sessionName: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
   sessionMeta: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' },

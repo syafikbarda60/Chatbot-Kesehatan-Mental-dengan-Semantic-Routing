@@ -21,6 +21,9 @@ import { ToastProvider } from '../components/ui/Toast';
 
 SplashScreen.preventAutoHideAsync();
 
+// Bottom-nav tabs switch instantly, like a tab bar
+const TAB = { animation: 'none' } as const;
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -45,22 +48,24 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <ToastProvider>
-        <StatusBar style="dark" backgroundColor={SajiwaColors.background} />
+        <StatusBar style="dark" />
         <Stack
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: SajiwaColors.background },
-            animation: 'fade_from_bottom',
+            animation: 'fade',
           }}
         >
           <Stack.Screen name="index" />
           <Stack.Screen name="register" />
-          <Stack.Screen name="home" />
+          <Stack.Screen name="home" options={TAB} />
           <Stack.Screen name="admin" />
-          <Stack.Screen name="chat" />
+          <Stack.Screen name="chat" options={TAB} />
           <Stack.Screen name="journal" />
           <Stack.Screen name="stats" />
-          <Stack.Screen name="profile" />
+          <Stack.Screen name="profile" options={TAB} />
+          <Stack.Screen name="schedule" options={TAB} />
+          <Stack.Screen name="journal-history" options={TAB} />
         </Stack>
         {!splashAnimationFinished && (
           <AnimatedSplashScreen onAnimationComplete={() => setSplashAnimationFinished(true)} />

@@ -1,33 +1,20 @@
 // components/ui/FadeIn.tsx
-// Wrapper that fades + slides in children on mount.
-
+// Entrance for sections: a short opacity fade, nothing else. Honors the system "reduce motion" setting.
 import React from 'react';
-import { Animated } from 'react-native';
-import { useAnimatedEntrance } from '@prototype/ui-shared';
+import { StyleProp, ViewStyle } from 'react-native';
+import Animated, { FadeIn as Fade, ReduceMotion } from 'react-native-reanimated';
 
 interface FadeInProps {
   children: React.ReactNode;
-  delay?: number;
-  duration?: number;
-  fromY?: number;
-  style?: object;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const FadeIn: React.FC<FadeInProps> = ({
-  children,
-  delay = 0,
-  duration = 350,
-  fromY = 12,
-  style,
-}) => {
-  const { opacity, translateY } = useAnimatedEntrance({ delay, duration, fromY });
+const entering = Fade.duration(200).reduceMotion(ReduceMotion.System);
 
-  return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
-      {children}
-    </Animated.View>
-  );
-};
+export const FadeIn: React.FC<FadeInProps> = ({ children, style }) => (
+  <Animated.View entering={entering} style={style}>
+    {children}
+  </Animated.View>
+);
 
 export default FadeIn;
-

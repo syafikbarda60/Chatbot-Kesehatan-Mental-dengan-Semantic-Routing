@@ -100,6 +100,30 @@ def cut(img):
                 q.append((nx, ny))
     return img
 
+def drop_specks(img, min_area=150):
+    # Stray text/label fragments that survive the flood-fill become tiny islands; clear them.
+    w, h = img.size
+    px = img.load()
+    seen = bytearray(w * h)
+    for sy in range(h):
+        for sx in range(w):
+            if seen[sy * w + sx] or px[sx, sy][3] == 0:
+                continue
+            comp, q = [], deque([(sx, sy)])
+            seen[sy * w + sx] = 1
+            while q:
+                x, y = q.popleft()
+                comp.append((x, y))
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and px[nx, ny][3] > 0:
+                        seen[ny * w + nx] = 1
+                        q.append((nx, ny))
+            if len(comp) < min_area:
+                for x, y in comp:
+                    r, g, b, _ = px[x, y]
+                    px[x, y] = (r, g, b, 0)
+    return img
+
 def squarize(img):
     w, h = img.size
     s = max(w, h)
@@ -107,10 +131,27 @@ def squarize(img):
     canvas.paste(img, ((s - w) // 2, s - h))  # bottom-aligned
     return canvas
 
-sheet = Image.open(SRC)
-for name, (x0, y0, x1, y1) in BOXES.items():
-    crop = sheet.crop((x0 + PX, y0 + PY, x1 + PX, y1 + PY))
-    out = squarize(cut(crop))
+# Second sheet (Gemini "perluasan emosi"), full-sheet coords. Takut/khawatir skipped: clipped / reads angry.
+BOXES2 = {
+    'kecewa':  (1812, 190, 2012, 420),
+    'cemas':   (2040, 190, 2240, 420),
+    'bosan':   (1596, 190, 1795, 420),
+    'pusing':  (1752, 455, 1962, 685),
+    'harapan': (2262, 455, 2480, 685),
+    'sedih':   (1292, 455, 1470, 685),
+}
+# Sheet areas painted over with background before cutting (neighbouring label text)
+MASKS = {'pusing': (1752, 455, 1774, 508)}
+JOBS = [(SRC, PX, PY, BOXES), ('CharSet2.jpeg', 0, 0, BOXES2)]
+
+for src, ox, oy, boxes in JOBS:
+  sheet = Image.open(src)
+  for name, (x0, y0, x1, y1) in boxes.items():
+    crop = sheet.crop((x0 + ox, y0 + oy, x1 + ox, y1 + oy))
+    if name in MASKS:
+        mx0, my0, mx1, my1 = MASKS[name]
+        crop.paste(crop.getpixel((2, 2)), (mx0 - x0, my0 - y0, mx1 - x0, my1 - y0))
+    out = squarize(drop_specks(cut(crop)))
     if UPSCALE > 1:
         # premultiplied alpha avoids light halos from transparent pixels during resampling
         out = out.convert('RGBa').resize((out.width * UPSCALE, out.height * UPSCALE), Image.LANCZOS).convert('RGBA')

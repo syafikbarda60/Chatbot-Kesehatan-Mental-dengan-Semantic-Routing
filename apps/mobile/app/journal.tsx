@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { apiSaveJournal } from '@prototype/api-client';
 import type { Expression } from '@prototype/utils';
-import { NeuView, Button, ScreenHeader, goBack, useToast } from '../components/ui';
+import { NeuView, Button, ScreenHeader, goBack, useToast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui';
 import { Companion } from '../components/chat';
 import { MoodPicker } from '../components/MoodPicker';
 import { Mood, MOOD_COMPANION, todayPrompt } from '../constants/moods';
@@ -19,6 +19,7 @@ export default function JournalScreen() {
   const [mood, setMood] = useState<Mood | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const prompt = todayPrompt();
@@ -47,10 +48,7 @@ export default function JournalScreen() {
   // Never silently throw away what the user wrote
   const handleDiscard = () => {
     if (!content.trim()) return goBack();
-    Alert.alert('Buang tulisan ini?', 'Tulisanmu belum disimpan dan akan hilang.', [
-      { text: 'Lanjut menulis', style: 'cancel' },
-      { text: 'Buang', style: 'destructive', onPress: goBack },
-    ]);
+    setConfirmDiscard(true);
   };
 
   return (
@@ -65,7 +63,7 @@ export default function JournalScreen() {
               {companion.line}
             </Text>
           </View>
-          <Companion expression={companion.face} size={104} />
+          <Companion expression={companion.face} size={124} />
         </View>
 
         <Text style={[s.label, { color: colors.onSurface }]}>Aku merasa…</Text>
@@ -89,8 +87,18 @@ export default function JournalScreen() {
 
       <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>
         <Button label="Batal" variant="ghost" onPress={handleDiscard} style={{ flex: 1 }} />
-        <Button label="Simpan" onPress={handleSave} loading={isLoading} disabled={!content.trim() || saved} style={{ flex: 2 }} />
+        <Button label="Simpan" accent={colors.sage} onPress={handleSave} loading={isLoading} disabled={!content.trim() || saved} style={{ flex: 2 }} />
       </View>
+      <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <DialogHeader>
+          <DialogTitle>Buang tulisan ini?</DialogTitle>
+          <DialogDescription>Tulisanmu belum disimpan dan akan hilang.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button label="Lanjut menulis" variant="ghost" onPress={() => setConfirmDiscard(false)} style={{ flex: 1 }} />
+          <Button label="Buang" variant="danger" onPress={() => { setConfirmDiscard(false); goBack(); }} style={{ flex: 1 }} />
+        </DialogFooter>
+      </Dialog>
     </KeyboardAvoidingView>
   );
 }

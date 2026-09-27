@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useChat } from '../hooks/useChat';
 import { ChatBubble, TypingIndicator, QuickReply, AlertModal, Companion } from '../components/chat';
 import { DayDivider, OpeningPrompts, SupportNote } from '../components/chat/ConversationExtras';
-import { EXPRESSION_STATUS, type Expression } from '@prototype/utils';
+import { EXPRESSION_STATUS, isHeavy, type Expression } from '@prototype/utils';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
 
@@ -64,7 +64,7 @@ export default function ChatScreen() {
     ? 'Hari ini'
     : new Date(firstDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
   // AI typing > user typing (attentive) > last reaction
-  const liveExpression: Expression = isTyping ? 'berpikir' : canSend && expression !== 'tenang' ? 'senang' : expression;
+  const liveExpression: Expression = isTyping ? 'berpikir' : canSend && !isHeavy(expression) ? 'senang' : expression;
 
   return (
     <KeyboardAvoidingView
@@ -138,6 +138,14 @@ export default function ChatScreen() {
             ) : (
               <>
                 {!hasUserMessage && messages.length > 0 && (
+                  <View style={s.hello}>
+                    <Companion expression={liveExpression} size={168} animated />
+                    <Text style={[s.helloText, { color: colors.onSurfaceVariant }]}>
+                      Aku di sini untuk mendengarkan, tanpa menghakimi.
+                    </Text>
+                  </View>
+                )}
+                {!hasUserMessage && messages.length > 0 && (
                   <OpeningPrompts onPick={(t) => { sendMessage(t); Keyboard.dismiss(); }} />
                 )}
                 {showNote && (
@@ -163,12 +171,13 @@ export default function ChatScreen() {
           {
             paddingBottom: insets.bottom + Spacing.sm,
             backgroundColor: colors.background,
+            paddingLeft: hasUserMessage ? Spacing.xs : Spacing.md,
             /* borderTopColor removed for neumorphism */
           },
         ]}
       >
         {/* Companion sits beside the composer: messages above keep their full width */}
-        <Companion expression={liveExpression} />
+        {hasUserMessage && <Companion expression={liveExpression} animated />}
 
         <View style={s.composer}>
         {/* Suggestions only once the user is in a heavy moment; openers cover the fresh start */}
@@ -305,6 +314,8 @@ const s = StyleSheet.create({
     paddingLeft: Spacing.xs,
   },
   composer: { flex: 1, minWidth: 0 },
+  hello: { alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 18, paddingHorizontal: 32 },
+  helloText: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center', lineHeight: 21 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

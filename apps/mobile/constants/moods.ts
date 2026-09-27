@@ -1,13 +1,13 @@
 // Journal moods. DB stores the English `key`; UI shows the Indonesian label.
-// Colors are darkened so they pass 4.5:1 as text on the #FFF2F2 background.
+// Colors are darkened so they pass 4.5:1 as text on the #E4E8EE background.
 import type { Expression } from '@prototype/utils';
 
 export type Mood = 'Calm' | 'Anxious' | 'Focused' | 'Tired';
 
 export const MOODS: { key: Mood; label: string; icon: any; color: string }[] = [
-  { key: 'Calm',    label: 'Tenang', icon: 'leaf-outline',         color: '#3B7A56' },
-  { key: 'Focused', label: 'Fokus',  icon: 'disc-outline',         color: '#2D336B' },
-  { key: 'Tired',   label: 'Lelah',  icon: 'battery-half-outline', color: '#8A6710' },
+  { key: 'Calm',    label: 'Tenang', icon: 'leaf-outline',         color: '#336B4B' },
+  { key: 'Focused', label: 'Fokus',  icon: 'disc-outline',         color: '#26356E' },
+  { key: 'Tired',   label: 'Lelah',  icon: 'battery-half-outline', color: '#7C5C0D' },
   { key: 'Anxious', label: 'Cemas',  icon: 'cloud-outline',        color: '#9f403d' },
 ];
 
@@ -33,7 +33,7 @@ export const MOOD_COMPANION: Record<Mood, { face: Expression; writing: string; l
     looking: 'Hari itu kamu lelah. Semoga sekarang kamu sudah lebih beristirahat.',
   },
   Anxious: {
-    face: 'tenang',
+    face: 'cemas',
     writing: 'Aku di sini. Tulis pelan-pelan apa yang membuatmu cemas.',
     looking: 'Hari itu terasa berat. Terima kasih sudah jujur menuliskannya.',
   },

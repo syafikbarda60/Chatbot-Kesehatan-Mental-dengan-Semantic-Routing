@@ -1,7 +1,9 @@
 // components/ui/Button.tsx
 // Reusable button with variants: 'primary' | 'secondary' | 'ghost' | 'danger'
 
-import React from 'react';
+import React, { useState } from 'react';
+import Animated from 'react-native-reanimated';
+import { usePressScale } from './usePressScale';
 import {
   Pressable,
   Text,
@@ -24,7 +26,11 @@ interface ButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   icon?: React.ReactNode;
+  /** Feature color for the primary variant (e.g. sage on journal screens, amber on counseling). */
+  accent?: string;
 }
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export const Button: React.FC<ButtonProps> = ({
   label,
@@ -35,12 +41,15 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   textStyle,
   icon,
+  accent,
 }) => {
   const { colors } = useTheme();
+  const [pressed, setPressed] = useState(false);
+  const press = usePressScale(0.98);
 
   const getContainerStyle = (): ViewStyle => {
     switch (variant) {
-      case 'primary':   return { backgroundColor: colors.primary, boxShadow: Neu.raised };
+      case 'primary':   return { backgroundColor: accent ?? colors.primary, boxShadow: Neu.raised };
       case 'secondary': return { backgroundColor: colors.background, boxShadow: Neu.raised };
       case 'ghost':     return {};
       case 'danger':    return { backgroundColor: colors.stressHigh };
@@ -59,19 +68,22 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => { setPressed(true); press.onPressIn(); }}
+      onPressOut={() => { setPressed(false); press.onPressOut(); }}
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
-      style={({ pressed }) => [
+      style={[
         styles.base,
         getContainerStyle(),
-        // Neumorphic press: the surface sinks in instead of fading out
-        pressed && variant !== 'ghost' && { boxShadow: Neu.inset, transform: [{ scale: 0.98 }] },
+        // Neumorphic press: the surface sinks in and springs back
+        pressed && variant !== 'ghost' && { boxShadow: Neu.inset },
         (disabled || loading) && styles.disabled,
         style,
+        press.style,
       ]}
     >
       {loading ? (
@@ -82,7 +94,7 @@ export const Button: React.FC<ButtonProps> = ({
           <Text style={[styles.label, { color: getLabelColor() }, textStyle]}>{label}</Text>
         </>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 

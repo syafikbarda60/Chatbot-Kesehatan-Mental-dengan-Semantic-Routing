@@ -2,11 +2,22 @@
 import assert from 'node:assert';
 import { reactToUserMessage as r, categorize as c } from './characterReaction';
 
-// Safety: distress is always the calm face, whatever else the message contains
-for (const t of ['aku ingin mati', 'hari ini aku sedih banget haha', 'aku tidak senang', 'aku gagal ujian',
-                 'aku kesepian', 'makasih tapi aku masih cemas', 'wkwk aku capek banget']) {
+// Safety: crisis words are always the calm face, whatever else the message contains
+for (const t of ['aku ingin mati haha', 'makasih tapi aku mau menyerah', 'wkwk aku putus asa', 'aku panik semoga cepat']) {
   assert.equal(r(t), 'tenang', t);
 }
+// Other distress: empathetic, never playful
+const PLAYFUL = ['tertawa', 'wink', 'semangat', 'jempol', 'senang', 'malu', 'menyapa', 'terkejut'];
+for (const t of ['hari ini aku sedih banget haha', 'aku tidak senang', 'aku gagal ujian', 'aku kesepian',
+                 'makasih tapi aku masih cemas', 'wkwk aku capek banget', 'pusing tugas numpuk', 'aku kecewa sama diriku']) {
+  assert.ok(!PLAYFUL.includes(r(t)), `${t} -> ${r(t)}`);
+}
+assert.equal(c('aku cemas besok presentasi'), 'anxious');
+assert.equal(c('pusing banget deadline'), 'overwhelmed');
+assert.equal(c('gabut nih'), 'tired');
+assert.equal(c('aku kecewa'), 'disappointed');
+assert.equal(c('aku kangen rumah'), 'sad');
+assert.equal(c('semoga besok lancar'), 'hope');
 
 assert.equal(c('aku bingung mau mulai dari mana'), 'confused');
 assert.equal(c('makasih ya'), 'thanks');

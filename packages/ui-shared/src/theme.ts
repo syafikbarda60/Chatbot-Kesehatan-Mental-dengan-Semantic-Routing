@@ -5,118 +5,128 @@
 
 // ── Color Palette ────────────────────────────────────────────
 export const SajiwaColors = {
-  // Core (Background: FFF2F2)
-  background:              '#FFF2F2',
-  surface:                 '#FFF2F2',
-  surfaceBright:           '#FFFFFF',
-  surfaceDim:              '#F5E6E6',
-  surfaceVariant:          '#A9B5DF', // The light blue from palette
+  // Role-based palette (2026-09-27). One neumorphic surface; each accent means a feature:
+  // navy = Sajiwa/chat/primary, sage = journal, amber = counseling, coral = crisis only.
+  // Text contrast on background: ink 12.3:1, sub 5.7:1, navy 9.4:1, sage 5.0:1,
+  // amber 4.0:1 (bold/large + icons), coral 4.4:1 (bold/large + icons). *Fill tokens are decorative only.
+  background:              '#E4E8EE',
+  surface:                 '#E4E8EE',
+  surfaceBright:           '#EEF1F7',
+  surfaceDim:              '#D8DDE6',
+  surfaceVariant:          '#C9D0DE',
 
   // Surface containers (Neumorphism base)
-  surfaceContainerLowest:  '#FFF2F2',
-  surfaceContainerLow:     '#FFF2F2',
-  surfaceContainer:        '#FFF2F2',
-  surfaceContainerHigh:    '#F2E5E5',
-  surfaceContainerHighest: '#E5D8D8',
+  surfaceContainerLowest:  '#E4E8EE',
+  surfaceContainerLow:     '#E4E8EE',
+  surfaceContainer:        '#E4E8EE',
+  surfaceContainerHigh:    '#DADFE8',
+  surfaceContainerHighest: '#CFD5E0',
 
-  // Primary (Navy: 2D336B)
-  primary:                 '#2D336B',
-  primaryDim:              '#1E234A',
-  primaryFixed:            '#7886C7',
-  primaryFixedDim:         '#5A669A',
-  primaryContainer:        '#A9B5DF',
-  onPrimary:               '#FFF2F2',
-  onPrimaryFixed:          '#FFF2F2',
-  onPrimaryFixedVariant:   '#FFF2F2',
-  onPrimaryContainer:      '#2D336B',
+  // Primary: navy (Sajiwa, chat)
+  primary:                 '#26356E',
+  primaryDim:              '#1B2757',
+  primaryFixed:            '#5B6AA8',
+  primaryFixedDim:         '#3F4E8A',
+  primaryContainer:        '#C9D0E6',
+  onPrimary:               '#FFFFFF',
+  onPrimaryFixed:          '#FFFFFF',
+  onPrimaryFixedVariant:   '#FFFFFF',
+  onPrimaryContainer:      '#1B2757',
 
-  // Secondary (Indigo: 7886C7)
-  secondary:               '#7886C7',
-  secondaryDim:            '#5A669A',
-  secondaryFixed:          '#A9B5DF',
-  secondaryFixedDim:       '#8B98C2',
-  secondaryContainer:      '#E3E8FF',
-  onSecondary:             '#FFF2F2',
-  onSecondaryFixed:        '#2D336B',
-  onSecondaryFixedVariant: '#2D336B',
-  onSecondaryContainer:    '#2D336B',
+  // Feature accents
+  sage:                    '#2F6B5F', // journal
+  sageFill:                '#DCE7E2',
+  amber:                   '#9A6420', // counseling (text/icons/buttons)
+  amberFill:               '#D4964A', // decorative fill only
+  coral:                   '#B24A33', // crisis only (text/icons/buttons)
+  coralFill:               '#D9674E', // decorative fill only
 
-  // Tertiary (Light Blue: A9B5DF)
-  tertiary:                '#A9B5DF',
-  tertiaryDim:             '#8B98C2',
-  tertiaryFixed:           '#FFF2F2',
-  tertiaryFixedDim:        '#E3E8FF',
-  tertiaryContainer:       '#E3E8FF',
-  onTertiary:              '#2D336B',
-  onTertiaryFixed:         '#2D336B',
-  onTertiaryFixedVariant:  '#2D336B',
-  onTertiaryContainer:     '#2D336B',
+  // Secondary / tertiary kept for components that still reference them
+  secondary:               '#5B6AA8',
+  secondaryDim:            '#3F4E8A',
+  secondaryFixed:          '#C9D0E6',
+  secondaryFixedDim:       '#A9B3D3',
+  secondaryContainer:      '#D8DDEE',
+  onSecondary:             '#FFFFFF',
+  onSecondaryFixed:        '#1B2757',
+  onSecondaryFixedVariant: '#1B2757',
+  onSecondaryContainer:    '#1B2757',
+  tertiary:                '#2F6B5F',
+  tertiaryDim:             '#245449',
+  tertiaryFixed:           '#DCE7E2',
+  tertiaryFixedDim:        '#C4D6CE',
+  tertiaryContainer:       '#DCE7E2',
+  onTertiary:              '#FFFFFF',
+  onTertiaryFixed:         '#17302C',
+  onTertiaryFixedVariant:  '#17302C',
+  onTertiaryContainer:     '#17302C',
 
   // On-colors (Text)
-  onBackground:            '#2D336B',
-  onSurface:               '#2D336B',
-  onSurfaceVariant:        '#5A669A', // 5.1:1 on background (was #7886C7, 3.2:1)
+  onBackground:            '#1C2447',
+  onSurface:               '#1C2447',
+  onSurfaceVariant:        '#4E5876',
 
   // Outline
-  outline:                 '#A9B5DF',
-  outlineVariant:          '#D1D8F0',
+  outline:                 '#9AA3BA',
+  outlineVariant:          '#C3C9D6',
 
   // Error
-  error:                   '#9f403d',
-  errorDim:                '#4e0309',
-  errorContainer:          '#fe8983',
-  onError:                 '#fff7f6',
-  onErrorContainer:        '#752121',
+  error:                   '#B24A33',
+  errorDim:                '#7A2E1F',
+  errorContainer:          '#F2D3CB',
+  onError:                 '#FFFFFF',
+  onErrorContainer:        '#7A2E1F',
 
   // Inverse
-  inverseSurface:          '#2D336B',
-  inverseOnSurface:        '#FFF2F2',
-  inversePrimary:          '#A9B5DF',
+  inverseSurface:          '#1C2447',
+  inverseOnSurface:        '#E4E8EE',
+  inversePrimary:          '#C9D0E6',
 
   // Surface tint
-  surfaceTint:             '#7886C7',
+  surfaceTint:             '#26356E',
 
   // Convenience aliases
-  card:                    '#FFF2F2',
-  cardAlt:                 '#FFF2F2',
-  border:                  '#A9B5DF',
-  borderLight:             '#E3E8FF',
-  divider:                 'rgba(169, 181, 223, 0.3)',
-  textPrimary:             '#2D336B',
-  textSecondary:           '#5A669A',
-  textMuted:               '#6E78A8', // 3.9:1, hints/timestamps only
+  card:                    '#E4E8EE',
+  cardAlt:                 '#E4E8EE',
+  border:                  '#C3C9D6',
+  borderLight:             '#D8DDE6',
+  divider:                 'rgba(122, 134, 168, 0.3)',
+  textPrimary:             '#1C2447',
+  textSecondary:           '#4E5876',
+  textMuted:               '#6B7390', // hints/timestamps only
   white:                   '#ffffff',
   black:                   '#000000',
-  overlay:                 'rgba(45, 51, 107, 0.4)',
+  overlay:                 'rgba(20, 26, 50, 0.45)',
 
   // Tab bar
-  tabActive:               '#2D336B',
-  tabInactive:             '#5A669A',
-  tabBar:                  '#FFF2F2',
+  tabActive:               '#26356E',
+  tabInactive:             '#4E5876',
+  tabBar:                  '#E4E8EE',
 
-  // Stress / mood indicators (keeping functional colors but adjusted slightly to blend)
-  stressLow:               '#7886C7', // Repurposed for low stress to match theme
-  stressMid:               '#8A6710', // darkened amber, readable as text
-  stressHigh:              '#9f403d',
-  stressLowBg:             'rgba(120, 134, 199, 0.12)',
-  stressMidBg:             'rgba(212,168,67,0.12)',
-  stressHighBg:            'rgba(159,64,61,0.12)',
+  // Stress / mood indicators
+  stressLow:               '#2F6B5F',
+  stressMid:               '#9A6420',
+  stressHigh:              '#B24A33',
+  stressLowBg:             'rgba(47, 107, 95, 0.12)',
+  stressMidBg:             'rgba(154, 100, 32, 0.12)',
+  stressHighBg:            'rgba(178, 74, 51, 0.12)',
 
   // Gradient helpers
-  primaryGradientStart:    '#7886C7',
-  primaryGradientEnd:      '#2D336B',
+  primaryGradientStart:    '#3F4E8A',
+  primaryGradientEnd:      '#26356E',
 
   // Neumorphism light sources (top-left light, bottom-right shade)
   neuLight:                'rgba(255, 255, 255, 0.95)',
-  neuDark:                 'rgba(166, 128, 140, 0.32)',
+  neuDark:                 'rgba(122, 134, 168, 0.5)',
 };
 
 // ── Neumorphic surfaces ───────────────────────────────────────
 // Uses the `boxShadow` style (RN new architecture + web). Two shadows fake the light source.
 export const Neu = {
-  raised:  `-6px -6px 14px ${SajiwaColors.neuLight}, 6px 6px 14px ${SajiwaColors.neuDark}`,
-  raisedSm:`-3px -3px 8px ${SajiwaColors.neuLight}, 3px 3px 8px ${SajiwaColors.neuDark}`,
-  inset:   `inset 4px 4px 8px ${SajiwaColors.neuDark}, inset -4px -4px 8px ${SajiwaColors.neuLight}`,
+  // Bolder depth than the first pass: the mid-tone surface lets both shadows read clearly
+  raised:  `-9px -9px 20px ${SajiwaColors.neuLight}, 9px 9px 20px ${SajiwaColors.neuDark}`,
+  raisedSm:`-5px -5px 11px ${SajiwaColors.neuLight}, 5px 5px 11px ${SajiwaColors.neuDark}`,
+  inset:   `inset 6px 6px 12px ${SajiwaColors.neuDark}, inset -6px -6px 12px ${SajiwaColors.neuLight}`,
 };
 
 export type SajiwaColorKey = keyof typeof SajiwaColors;

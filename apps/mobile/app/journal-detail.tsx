@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
-import { FadeIn, NeuView, Button, ScreenHeader, useToast } from '../components/ui';
+import { FadeIn, NeuView, Button, ScreenHeader, useToast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui';
 import { Companion } from '../components/chat';
 import { MoodPicker } from '../components/MoodPicker';
-import { apiUpdateJournal, apiDeleteJournal } from '@prototype/api-client';
+import { apiUpdateJournal, apiDeleteJournal, apiGetJournals } from '@prototype/api-client';
 import { Mood, moodOf, MOOD_COMPANION } from '../constants/moods';
+import { PressableScale } from '../components/ui';
 
 export default function JournalDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -25,6 +26,17 @@ export default function JournalDetailScreen() {
   const [editMood, setEditMood] = useState<Mood | null>(mood);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [others, setOthers] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiGetJournals(4, 0)
+      .then((r) => setOthers((r.journals || []).filter((j) => j.journal_id !== journal_id).slice(0, 3)))
+      .catch(() => {}); // optional section: just don't render
+  }, [journal_id]);
+
+  const openOther = (j: any) =>
+    router.replace({ pathname: '/journal-detail', params: { journal_id: j.journal_id, content: j.content, mood: j.mood, created_at: j.created_at } });
 
   const moodInfo = moodOf(mood);
   const companion = mood ? MOOD_COMPANION[mood] : null;
@@ -57,25 +69,18 @@ export default function JournalDetailScreen() {
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert('Hapus jurnal ini?', 'Jurnal yang dihapus tidak bisa dikembalikan.', [
-      { text: 'Batal', style: 'cancel' },
-      {
-        text: 'Hapus',
-        style: 'destructive',
-        onPress: async () => {
-          setIsDeleting(true);
-          try {
-            await apiDeleteJournal(journal_id);
-            toast.show('Jurnal dihapus.', 'info');
-            router.back();
-          } catch (e) {
-            toast.show('Jurnal belum terhapus. Coba lagi nanti.', 'error');
-            setIsDeleting(false);
-          }
-        },
-      },
-    ]);
+  // In-app dialog instead of Alert.alert: RN-web ignores Alert buttons, so delete never fired there
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await apiDeleteJournal(journal_id);
+      setConfirmDelete(false);
+      toast.show('Jurnal dihapus.', 'info');
+      router.back();
+    } catch (e) {
+      toast.show('Jurnal belum terhapus. Coba lagi nanti.', 'error');
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -87,7 +92,7 @@ export default function JournalDetailScreen() {
         <ScreenHeader back title="Catatan jurnal" />
 
         {/* ── Hero: when, how you felt, and the companion looking back with you ── */}
-        <FadeIn delay={0}>
+        <FadeIn>
           <NeuView radius={28} style={s.hero}>
             <View style={s.heroRow}>
               <View style={{ flex: 1, gap: 10 }}>
@@ -111,7 +116,7 @@ export default function JournalDetailScreen() {
                   </View>
                 )}
               </View>
-              <Companion expression={companion?.face ?? 'senang'} size={112} />
+              <Companion expression={companion?.face ?? 'senang'} size={130} />
             </View>
             <Text style={[s.reflection, { color: colors.onSurfaceVariant }]}>
               {companion?.looking ?? 'Setiap catatan adalah jejak perjalananmu. Terima kasih sudah menuliskannya.'}
@@ -120,7 +125,7 @@ export default function JournalDetailScreen() {
         </FadeIn>
 
         {/* ── The entry itself ── */}
-        <FadeIn delay={80}>
+        <FadeIn>
           {isEditing ? (
             <View style={{ gap: 14 }}>
               <Text style={[s.sectionTitle, { color: colors.onSurface }]}>Suasana hati</Text>
@@ -141,7 +146,7 @@ export default function JournalDetailScreen() {
               </NeuView>
               <View style={s.row}>
                 <Button label="Batal" variant="ghost" onPress={() => setIsEditing(false)} disabled={isSaving} style={{ flex: 1 }} />
-                <Button label="Simpan perubahan" onPress={handleSave} loading={isSaving} style={{ flex: 2 }} />
+                <Button label="Simpan perubahan" accent={colors.sage} onPress={handleSave} loading={isSaving} style={{ flex: 2 }} />
               </View>
             </View>
           ) : (
@@ -161,7 +166,7 @@ export default function JournalDetailScreen() {
         {!isEditing && (
           <>
             {/* ── Look back, then move forward ── */}
-            <FadeIn delay={160}>
+            <FadeIn>
               <View style={{ gap: 12 }}>
                 <View>
                   <Text style={[s.sectionTitle, { color: colors.onSurface }]}>Bagaimana perasaanmu sekarang?</Text>
@@ -172,35 +177,64 @@ export default function JournalDetailScreen() {
                     { icon: 'create-outline', label: 'Tulis jurnal baru', to: '/journal' },
                     { icon: 'chatbubble-ellipses-outline', label: 'Cerita ke Sajiwa', to: '/chat' },
                   ].map((a) => (
-                    <Pressable
+                    <PressableScale
                       key={a.to}
                       onPress={() => router.push(a.to as any)}
                       accessibilityRole="button"
                       style={({ pressed }) => [s.tile, { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raisedSm }]}
                     >
-                      <Ionicons name={a.icon as any} size={22} color={colors.primary} />
+                      <Ionicons name={a.icon as any} size={22} color={colors.sage} />
                       <Text style={[s.tileText, { color: colors.onSurface }]}>{a.label}</Text>
-                    </Pressable>
+                    </PressableScale>
                   ))}
                 </View>
               </View>
             </FadeIn>
 
+            {others.length > 0 && (
+              <FadeIn>
+                <View style={{ gap: 12 }}>
+                  <Text style={[s.sectionTitle, { color: colors.onSurface }]}>Catatan lainnya</Text>
+                  {others.map((j) => {
+                    const m = moodOf(j.mood);
+                    const d = new Date(j.created_at);
+                    return (
+                      <PressableScale
+                        key={j.journal_id}
+                        onPress={() => openOther(j)}
+                        accessibilityRole="button"
+                        style={({ pressed }) => [s.other, { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raisedSm }]}
+                      >
+                        <View style={[s.otherDot, { backgroundColor: m?.color ?? colors.outline }]} />
+                        <View style={{ flex: 1, gap: 2 }}>
+                          <Text style={[s.otherDate, { color: colors.onSurfaceVariant }]}>
+                            {d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' })}{m ? ` · ${m.label}` : ''}
+                          </Text>
+                          <Text style={[s.otherText, { color: colors.onSurface }]} numberOfLines={1}>{j.content}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                      </PressableScale>
+                    );
+                  })}
+                </View>
+              </FadeIn>
+            )}
+
             {/* ── Manage ── */}
-            <FadeIn delay={220}>
+            <FadeIn>
               <View style={s.row}>
                 <Button
                   label="Ubah"
                   variant="secondary"
                   onPress={startEdit}
                   style={{ flex: 1 }}
-                  icon={<Ionicons name="pencil" size={16} color={colors.primary} />}
+                  icon={<Ionicons name="pencil" size={16} color={colors.sage} />}
+                  textStyle={{ color: colors.sage }}
                 />
                 <Button
                   label="Hapus"
                   variant="ghost"
-                  onPress={handleDelete}
-                  loading={isDeleting}
+                  onPress={() => setConfirmDelete(true)}
                   style={{ flex: 1 }}
                   textStyle={{ color: colors.error }}
                   icon={<Ionicons name="trash-outline" size={16} color={colors.error} />}
@@ -210,6 +244,17 @@ export default function JournalDetailScreen() {
           </>
         )}
       </ScrollView>
+
+      <Dialog open={confirmDelete} onOpenChange={(o) => !isDeleting && setConfirmDelete(o)}>
+        <DialogHeader>
+          <DialogTitle>Hapus jurnal ini?</DialogTitle>
+          <DialogDescription>Jurnal yang dihapus tidak bisa dikembalikan.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button label="Batal" variant="ghost" onPress={() => setConfirmDelete(false)} disabled={isDeleting} style={{ flex: 1 }} />
+          <Button label="Hapus" variant="danger" onPress={handleDelete} loading={isDeleting} style={{ flex: 1 }} />
+        </DialogFooter>
+      </Dialog>
     </KeyboardAvoidingView>
   );
 }
@@ -240,6 +285,11 @@ const s = StyleSheet.create({
 
   tile: { flex: 1, minHeight: 84, borderRadius: 20, padding: 14, gap: 8, justifyContent: 'center' },
   tileText: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
+
+  other: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18 },
+  otherDot: { width: 10, height: 10, borderRadius: 5 },
+  otherDate: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', textTransform: 'capitalize' },
+  otherText: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium' },
 
   editInput: { minHeight: 220, padding: 18, fontSize: 16, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 27 },
 });

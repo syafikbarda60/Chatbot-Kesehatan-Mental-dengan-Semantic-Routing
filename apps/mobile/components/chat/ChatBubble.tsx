@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { NeuView } from '../ui/NeuView';
 import { useTheme } from '@prototype/ui-shared';
 import type { Message } from '@prototype/utils';
@@ -10,22 +11,14 @@ interface Props {
   endOfGroup?: boolean;
 }
 
+const FADE = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
+
 export const fmtTime = (d: Date) =>
   d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 export const ChatBubble: React.FC<Props> = ({ message, endOfGroup = true }) => {
   const isUser = message.sender === 'user';
   const { colors } = useTheme();
-
-  const opacity = useRef(new Animated.Value(0)).current;
-  const y = useRef(new Animated.Value(8)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.timing(y, { toValue: 0, duration: 220, useNativeDriver: true }),
-    ]).start();
-  }, []);
 
   if (!message.text) return null;
 
@@ -35,9 +28,10 @@ export const ChatBubble: React.FC<Props> = ({ message, endOfGroup = true }) => {
 
   return (
     <Animated.View
+      entering={FADE}
       style={[
         isUser ? s.rowUser : s.rowAI,
-        { marginBottom: endOfGroup ? 18 : 6, opacity, transform: [{ translateY: y }] },
+        { marginBottom: endOfGroup ? 18 : 6 },
       ]}
       accessible
       accessibilityLabel={`${isUser ? 'Kamu' : 'Sajiwa'}, ${fmtTime(message.timestamp)}: ${message.text}`}

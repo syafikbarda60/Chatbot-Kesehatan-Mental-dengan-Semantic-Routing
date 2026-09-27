@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { apiGetChatSessions } from '@prototype/api-client';
 import { NeuView, Button, ScreenHeader, FadeIn, useToast } from '../components/ui';
+import { PressableScale } from '../components/ui';
+import { Companion } from '../components/chat';
 
 export default function ChatHistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -58,7 +60,7 @@ export default function ChatHistoryScreen() {
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 48 }} />
         ) : sessions.length === 0 ? (
           <NeuView inset radius={24} style={s.empty}>
-            <Ionicons name="chatbubbles-outline" size={40} color={colors.onSurfaceVariant} />
+            <Companion expression="menyapa" size={140} />
             <Text style={[s.emptyTitle, { color: colors.onSurface }]}>Belum ada percakapan</Text>
             <Text style={[s.emptyText, { color: colors.onSurfaceVariant }]}>
               Ceritakan apa pun yang sedang kamu rasakan. Sajiwa siap mendengarkan.
@@ -69,7 +71,7 @@ export default function ChatHistoryScreen() {
           <View style={s.list}>
             {sessions.map((session) => (
               <FadeIn key={session.session_id}>
-                <Pressable
+                <PressableScale
                   onPress={() => router.push(`/chat?sessionId=${session.session_id}`)}
                   accessibilityRole="button"
                   accessibilityLabel={`${session.title || 'Sesi chat'}, ${formatDate(session.started_at)}`}
@@ -88,9 +90,18 @@ export default function ChatHistoryScreen() {
                     <Text style={[s.cardDate, { color: colors.onSurfaceVariant }]}>{formatDate(session.started_at)}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                </Pressable>
+                </PressableScale>
               </FadeIn>
             ))}
+            <FadeIn>
+              <NeuView radius={24} style={s.more}>
+                <Companion expression="senang" size={96} />
+                <View style={{ flex: 1, gap: 10 }}>
+                  <Text style={[s.moreTitle, { color: colors.onSurface }]}>Ada cerita baru hari ini?</Text>
+                  <Button label="Mulai cerita baru" onPress={() => router.push('/chat')} />
+                </View>
+              </NeuView>
+            </FadeIn>
           </View>
         )}
       </ScrollView>
@@ -102,6 +113,8 @@ const s = StyleSheet.create({
   root: { flex: 1 },
   scroll: { paddingHorizontal: 20 },
   list: { gap: 16 },
+  more: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16, marginTop: 8 },
+  moreTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.2 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -16,4 +16,11 @@ export const CHARACTER: Record<Expression, ImageSourcePropType> = {
   malu:      require('../assets/Character/expressions/malu.png'),
   mengantuk: require('../assets/Character/expressions/mengantuk.png'),
   jempol:    require('../assets/Character/expressions/jempol.png'),
+  // Second sheet (CharSet2.jpeg)
+  sedih:     require('../assets/Character/expressions/sedih.png'),
+  kecewa:    require('../assets/Character/expressions/kecewa.png'),
+  cemas:     require('../assets/Character/expressions/cemas.png'),
+  pusing:    require('../assets/Character/expressions/pusing.png'),
+  bosan:     require('../assets/Character/expressions/bosan.png'),
+  harapan:   require('../assets/Character/expressions/harapan.png'),
 };

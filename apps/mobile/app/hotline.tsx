@@ -16,6 +16,8 @@ import { useTheme, Neu } from '@prototype/ui-shared';
 import { BottomNav, FadeIn, NeuView, ScreenHeader, useToast } from '../components/ui';
 import { callNumber } from '../components/chat/AlertModal';
 import { apiGetHotline } from '@prototype/api-client';
+import { PressableScale } from '../components/ui';
+import { Companion } from '../components/chat';
 
 type HotlineItem = {
   nama: string;
@@ -65,12 +67,12 @@ export default function HotlineScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 130 }]}
       >
-        <FadeIn delay={0}>
+        <FadeIn>
           <ScreenHeader back title="Hotline darurat" subtitle="Bantuan profesional, gratis dan rahasia." />
         </FadeIn>
 
         {/* ── Comfort banner ── */}
-        <FadeIn delay={80}>
+        <FadeIn>
           <View style={[s.bannerCard, { backgroundColor: colors.primary, boxShadow: Neu.raised }]}>
             <View style={s.bannerBlob} />
             <Ionicons name="heart-outline" size={32} color="#fff" />
@@ -84,7 +86,7 @@ export default function HotlineScreen() {
         </FadeIn>
 
         {/* ── Search ── */}
-        <FadeIn delay={140}>
+        <FadeIn>
           <NeuView inset radius={18} style={s.searchContainer}>
             <Ionicons name="search" size={20} color={colors.onSurfaceVariant} />
             <TextInput
@@ -96,15 +98,15 @@ export default function HotlineScreen() {
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Hapus pencarian">
+              <PressableScale onPress={() => setSearchQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Hapus pencarian">
                 <Ionicons name="close-circle" size={20} color={colors.onSurfaceVariant} />
-              </Pressable>
+              </PressableScale>
             )}
           </NeuView>
         </FadeIn>
 
         {/* ── List ── */}
-        <FadeIn delay={200}>
+        <FadeIn>
           {filteredHotlines.length === 0 ? (
             <NeuView inset radius={24} style={s.emptyBox}>
               <Ionicons name="search-outline" size={36} color={colors.onSurfaceVariant} />
@@ -113,7 +115,7 @@ export default function HotlineScreen() {
           ) : (
             <View style={s.listContainer}>
               {filteredHotlines.map((item, index) => (
-                <Pressable
+                <PressableScale
                   key={index}
                   onPress={() => callNumber(item.nomor)}
                   accessibilityRole="button"
@@ -133,10 +135,36 @@ export default function HotlineScreen() {
                   <View style={[s.callBtn, { backgroundColor: colors.stressHigh }]}>
                     <Ionicons name="call" size={20} color="#fff" />
                   </View>
-                </Pressable>
+                </PressableScale>
               ))}
             </View>
           )}
+        </FadeIn>
+
+        {/* ── When to reach out ── */}
+        <FadeIn>
+          <NeuView radius={24} style={s.guide}>
+            <View style={s.guideHead}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={[s.guideTitle, { color: colors.onSurface }]}>Kapan sebaiknya menelepon?</Text>
+                <Text style={[s.guideSub, { color: colors.onSurfaceVariant }]}>Tidak perlu menunggu keadaan parah.</Text>
+              </View>
+              <Companion expression="tenang" size={104} />
+            </View>
+            {[
+              'Muncul pikiran untuk menyakiti diri sendiri',
+              'Perasaan berat tidak kunjung reda berhari-hari',
+              'Kamu merasa sendirian dan butuh didengar sekarang',
+            ].map((t) => (
+              <View key={t} style={s.guideRow}>
+                <Ionicons name="ellipse" size={8} color={colors.stressHigh} style={{ marginTop: 7 }} />
+                <Text style={[s.guideText, { color: colors.onSurface }]}>{t}</Text>
+              </View>
+            ))}
+            <Text style={[s.guideNote, { color: colors.onSurfaceVariant }]}>
+              Dalam keadaan darurat, hubungi 112 atau datang ke IGD terdekat.
+            </Text>
+          </NeuView>
         </FadeIn>
       </ScrollView>
 
@@ -188,5 +216,12 @@ const s = StyleSheet.create({
   callBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
 
   emptyBox: { padding: 32, alignItems: 'center', gap: 12 },
+  guide: { padding: 18, gap: 10 },
+  guideHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  guideTitle: { fontSize: 17, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.2 },
+  guideSub: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
+  guideRow: { flexDirection: 'row', gap: 10 },
+  guideText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 21 },
+  guideNote: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 19, marginTop: 4 },
   emptyText: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center' },
 });

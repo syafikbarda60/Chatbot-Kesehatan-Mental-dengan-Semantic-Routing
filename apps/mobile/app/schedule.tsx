@@ -10,6 +10,7 @@ import type { Expression } from '@prototype/utils';
 import {
   apiGetJadwal, apiGetKonselor, apiBuatBooking, apiGetBookingSaya, JadwalSlot as Jadwal,
 } from '@prototype/api-client';
+import { PressableScale } from '../components/ui';
 
 type Counselor = { id: string; name: string; specialty: string };
 type Booking = {
@@ -90,6 +91,9 @@ export default function ScheduleScreen() {
         .filter((j) => selectedDay !== 0 || hm(j.waktu_mulai) > nowHM)
         .sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai))
     : [];
+  // First later day this week where the chosen counselor still has an open slot
+  const nextOpenDay = dates.findIndex((d, i) => i > selectedDay && jadwalList.some(
+    (j) => j.konselor_id === selectedCounselor?.id && j.tanggal === d.formatted && j.status === 'tersedia'));
 
   // Nearest upcoming session that is still active
   const today = ymd(new Date());
@@ -124,7 +128,7 @@ export default function ScheduleScreen() {
           <Text style={[s.stateTitle, { color: colors.onSurface }]}>{title}</Text>
           <Text style={[s.stateBody, { color: colors.onSurfaceVariant }]}>{body}</Text>
         </View>
-        <Companion expression={face} size={96} interactive={false} />
+        <Companion expression={face} size={116} />
       </View>
       {children}
     </NeuView>
@@ -152,12 +156,12 @@ export default function ScheduleScreen() {
         ) : (
           <>
             {/* ── Your session / how it works ── */}
-            <FadeIn delay={0}>
+            <FadeIn>
               {upcoming ? (
                 <NeuView radius={24} style={s.sessionCard}>
                   <Text style={[s.sectionLabel, { color: colors.onSurface, marginBottom: 0 }]}>Sesi kamu</Text>
                   <View style={s.sessionRow}>
-                    <View style={[s.dateBlock, { backgroundColor: colors.primary }]}>
+                    <View style={[s.dateBlock, { backgroundColor: colors.amberFill }]}>
                       <Text style={s.dateBlockDay}>{new Date(upcoming.jadwal_konsultasi!.tanggal).getDate()}</Text>
                       <Text style={s.dateBlockMonth}>
                         {new Date(upcoming.jadwal_konsultasi!.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
@@ -188,13 +192,13 @@ export default function ScheduleScreen() {
                         Kadang cerita langsung ke orang lebih melegakan. Begini caranya:
                       </Text>
                     </View>
-                    <Companion expression="menyapa" size={96} interactive={false} />
+                    <Companion expression="menyapa" size={116} />
                   </View>
                   <View style={s.steps}>
                     {['Pilih konselor', 'Pilih waktu', 'Tunggu konfirmasi'].map((t, i) => (
                       <View key={t} style={s.step}>
                         <View style={[s.stepNum, { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
-                          <Text style={[s.stepNumText, { color: colors.primary }]}>{i + 1}</Text>
+                          <Text style={[s.stepNumText, { color: colors.amber }]}>{i + 1}</Text>
                         </View>
                         <Text style={[s.stepText, { color: colors.onSurface }]}>{t}</Text>
                       </View>
@@ -205,7 +209,7 @@ export default function ScheduleScreen() {
             </FadeIn>
 
             {counselors.length === 0 ? (
-              <FadeIn delay={80}>
+              <FadeIn>
                 <StateCard
                   face="tenang"
                   title="Konselor belum membuka jadwal"
@@ -227,13 +231,13 @@ export default function ScheduleScreen() {
             ) : (
               <>
                 {/* ── Counselors ── */}
-                <FadeIn delay={80}>
+                <FadeIn>
                   <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Pilih konselor</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hList} style={s.hScroll}>
                     {counselors.map((c) => {
                       const active = selectedCounselor?.id === c.id;
                       return (
-                        <Pressable
+                        <PressableScale
                           key={c.id}
                           onPress={() => { setSelectedCounselor(c); setSelectedSlot(null); }}
                           accessibilityRole="radio"
@@ -241,57 +245,68 @@ export default function ScheduleScreen() {
                           accessibilityLabel={`${c.name}, ${c.specialty}`}
                           style={[s.counselorCard, { backgroundColor: colors.background, boxShadow: active ? Neu.inset : Neu.raisedSm }]}
                         >
-                          <View style={[s.avatar, active ? { backgroundColor: colors.primary } : { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
-                            <Text style={[s.avatarText, { color: active ? colors.onPrimary : colors.primary }]}>{initials(c.name)}</Text>
+                          <View style={[s.avatar, active ? { backgroundColor: colors.amber } : { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
+                            <Text style={[s.avatarText, { color: active ? colors.onPrimary : colors.amber }]}>{initials(c.name)}</Text>
                           </View>
                           <Text style={[s.counselorName, { color: colors.onSurface }]} numberOfLines={2}>{c.name}</Text>
                           <Text style={[s.counselorSpec, { color: colors.onSurfaceVariant }]} numberOfLines={1}>{c.specialty}</Text>
-                        </Pressable>
+                        </PressableScale>
                       );
                     })}
                   </ScrollView>
                 </FadeIn>
 
                 {/* ── Dates ── */}
-                <FadeIn delay={140}>
+                <FadeIn>
                   <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Pilih tanggal</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hList} style={s.hScroll}>
                     {dates.map((d, i) => {
                       const active = selectedDay === i;
                       return (
-                        <Pressable
+                        <PressableScale
                           key={d.formatted}
                           onPress={() => { setSelectedDay(i); setSelectedSlot(null); }}
                           accessibilityRole="radio"
                           accessibilityState={{ selected: active }}
                           accessibilityLabel={d.long}
-                          style={[s.dateChip, { backgroundColor: active ? colors.primary : colors.background, boxShadow: Neu.raisedSm }]}
+                          style={[s.dateChip, { backgroundColor: active ? colors.amber : colors.background, boxShadow: Neu.raisedSm }]}
                         >
                           <Text style={[s.dayLabel, { color: active ? colors.onPrimary : colors.onSurfaceVariant }]}>{d.day}</Text>
                           <Text style={[s.dateNum, { color: active ? colors.onPrimary : colors.onSurface }]}>{d.date}</Text>
-                        </Pressable>
+                        </PressableScale>
                       );
                     })}
                   </ScrollView>
                 </FadeIn>
 
                 {/* ── Slots ── */}
-                <FadeIn delay={200}>
+                <FadeIn>
                   <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Pilih waktu</Text>
                   {availableSlots.length === 0 ? (
-                    <NeuView inset radius={20} style={s.emptySlotBox}>
-                      <Ionicons name="calendar-clear-outline" size={24} color={colors.onSurfaceVariant} />
-                      <Text style={[s.muted, { color: colors.onSurfaceVariant }]}>
-                        Tidak ada jadwal di {selectedDate.long}. Coba tanggal lain.
-                      </Text>
-                    </NeuView>
+                    <StateCard
+                      face="berpikir"
+                      title="Belum ada jadwal di hari ini"
+                      body={`${selectedCounselor?.name ?? 'Konselor'} tidak membuka sesi pada ${selectedDate.long}.`}
+                    >
+                      {nextOpenDay > 0 ? (
+                        <Button
+                          label={`Lihat ${dates[nextOpenDay].long}`}
+                          variant="secondary"
+                          onPress={() => { setSelectedDay(nextOpenDay); setSelectedSlot(null); }}
+                        />
+                      ) : (
+                        <Text style={[s.muted, { color: colors.onSurfaceVariant }]}>
+                          Belum ada jadwal minggu ini. Coba pilih konselor lain.
+                        </Text>
+                      )}
+                    </StateCard>
                   ) : (
                     <View style={s.slotsGrid}>
                       {availableSlots.map((slot) => {
                         const active = selectedSlot?.jadwal_id === slot.jadwal_id;
                         const label = `${hm(slot.waktu_mulai)}–${hm(slot.waktu_selesai)}`;
                         return (
-                          <Pressable
+                          <PressableScale
                             key={slot.jadwal_id}
                             onPress={() => setSelectedSlot(slot)}
                             accessibilityRole="radio"
@@ -299,16 +314,16 @@ export default function ScheduleScreen() {
                             accessibilityLabel={`Pukul ${label}`}
                             style={[s.slotChip, { backgroundColor: colors.background, boxShadow: active ? Neu.inset : Neu.raisedSm }]}
                           >
-                            <Ionicons name="time-outline" size={16} color={active ? colors.primary : colors.onSurfaceVariant} />
+                            <Ionicons name="time-outline" size={16} color={active ? colors.amber : colors.onSurfaceVariant} />
                             <Text
                               style={[
                                 s.slotText,
-                                { color: active ? colors.primary : colors.onSurface, fontFamily: active ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_600SemiBold' },
+                                { color: active ? colors.amber : colors.onSurface, fontFamily: active ? 'PlusJakartaSans_700Bold' : 'PlusJakartaSans_600SemiBold' },
                               ]}
                             >
                               {label}
                             </Text>
-                          </Pressable>
+                          </PressableScale>
                         );
                       })}
                     </View>
@@ -316,12 +331,13 @@ export default function ScheduleScreen() {
                 </FadeIn>
 
                 {/* ── CTA ── */}
-                <FadeIn delay={260}>
+                <FadeIn>
                   <Button
                     label={selectedSlot ? `Minta sesi ${hm(selectedSlot.waktu_mulai)}` : 'Pilih waktu dulu'}
                     onPress={handleBook}
                     loading={isBooking}
                     disabled={!selectedSlot}
+                    accent={colors.amber}
                     icon={<Ionicons name="calendar-outline" size={18} color="#fff" />}
                   />
                 </FadeIn>
@@ -360,8 +376,8 @@ const s = StyleSheet.create({
   sessionCard: { padding: 18, gap: 14 },
   sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dateBlock: { width: 60, height: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  dateBlockDay: { fontSize: 24, fontFamily: 'PlusJakartaSans_800ExtraBold', color: '#fff', lineHeight: 28 },
-  dateBlockMonth: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', color: 'rgba(255,255,255,0.85)' },
+  dateBlockDay: { fontSize: 24, fontFamily: 'PlusJakartaSans_800ExtraBold', color: '#1C2447', lineHeight: 28 },
+  dateBlockMonth: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold', color: '#1C2447' },
   sessionName: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
   sessionMeta: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
@@ -384,5 +400,4 @@ const s = StyleSheet.create({
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   slotChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, paddingHorizontal: 14, borderRadius: 16 },
   slotText: { fontSize: 14 },
-  emptySlotBox: { flexDirection: 'row', alignItems: 'center', padding: 18, gap: 12 },
 });

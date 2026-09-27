@@ -2,7 +2,7 @@
 // the status bar, never covers the page or blocks touches, and dismisses itself (or on tap).
 // Use for "saved / failed" results; keep real modals for decisions (e.g. delete).
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, Text, View, StyleSheet } from 'react-native';
+import { Animated, Easing, Image, Pressable, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import type { Expression } from '@prototype/utils';
@@ -21,6 +21,8 @@ export const useToast = () => useContext(ToastContext);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
+  const compact = width < 380; // small phones: smaller face and text so the bubble keeps room
   const [toast, setToast] = useState<ToastState | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +54,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         <View style={[s.host, { top: insets.top + 6 }]}>
           <Animated.View
             style={{
+              width: '100%', // definite width so the bubble wraps instead of running off-screen
+              alignItems: 'center',
               opacity: anim,
               transform: [
                 { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }) },
@@ -68,9 +72,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               style={s.row}
             >
               {/* The sticker already has its own white die-cut border: no container needed */}
-              <Image source={CHARACTER[FACE[toast.type]]} style={s.face} resizeMode="contain" />
+              <Image source={CHARACTER[FACE[toast.type]]} style={compact ? s.faceSm : s.face} resizeMode="contain" />
               <View style={[s.bubble, { backgroundColor: colors.background, boxShadow: Neu.raised }]}>
-                <Text style={[s.text, { color: colors.onSurface }]}>{toast.message}</Text>
+                <Text style={[s.text, compact && s.textSm, { color: colors.onSurface }]}>{toast.message}</Text>
               </View>
             </Pressable>
           </Animated.View>
@@ -81,12 +85,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 };
 
 const s = StyleSheet.create({
-  host: { position: 'absolute', left: 14, right: 14, alignItems: 'center', zIndex: 1000, pointerEvents: 'box-none' },
+  host: { position: 'absolute', left: 12, right: 12, alignItems: 'center', zIndex: 1000, pointerEvents: 'box-none' },
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, maxWidth: 440 },
   face: { width: 58, height: 58, marginBottom: -6 },
+  faceSm: { width: 46, height: 46, marginBottom: -4 },
   // Speech bubble whose tail corner points at the companion, like its chat bubbles
   bubble: { flexShrink: 1, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 18, borderBottomLeftRadius: 6 },
   text: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 20 },
+  textSm: { fontSize: 13, lineHeight: 18 },
 });
 
 export default ToastProvider;

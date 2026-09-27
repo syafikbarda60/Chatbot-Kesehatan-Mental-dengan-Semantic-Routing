@@ -159,7 +159,7 @@ export default function StatsScreen() {
         />
 
         {/* Week navigator */}
-        <FadeIn delay={40}>
+        <FadeIn>
           <NeuView radius={22} style={s.weekNav}>
             <IconButton icon="chevron-back" label="Minggu sebelumnya" color={colors.primary} onPress={() => setWeekOffset((p) => p - 1)} />
             <View style={s.weekNavCenter}>
@@ -185,7 +185,7 @@ export default function StatsScreen() {
         </FadeIn>
 
         {/* Overview: counts, not a pseudo-clinical score */}
-        <FadeIn delay={80}>
+        <FadeIn>
           <View style={[s.overviewCard, { backgroundColor: colors.primary, boxShadow: Neu.raised }]}>
             <View style={s.overviewBlob} />
             <Text style={s.overviewValue}>{total}</Text>
@@ -197,7 +197,7 @@ export default function StatsScreen() {
         </FadeIn>
 
         {/* Daily chart */}
-        <FadeIn delay={150}>
+        <FadeIn>
           <NeuView radius={24} style={s.card}>
             <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Suasana hati harian</Text>
             <View style={s.chart} accessible accessibilityLabel={chartLabel}>
@@ -222,7 +222,7 @@ export default function StatsScreen() {
         </FadeIn>
 
         {/* Distribution */}
-        <FadeIn delay={220}>
+        <FadeIn>
           <NeuView radius={24} style={s.card}>
             <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Distribusi suasana hati</Text>
             {total === 0 ? (
@@ -253,7 +253,7 @@ export default function StatsScreen() {
         </FadeIn>
 
         {/* Recommendation */}
-        <FadeIn delay={290}>
+        <FadeIn>
           <NeuView radius={24} style={[s.card, { gap: 12 }]}>
             <View style={s.recHeader}>
               <Ionicons name={recommendation.icon as any} size={20} color={colors.primary} />

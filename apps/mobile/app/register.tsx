@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -15,14 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
 import { apiRegister } from '@prototype/api-client';
 import { Button, NeuView, Input, IconButton, useToast } from '../components/ui';
+import { Companion } from '../components/chat';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const toast = useToast();
-
-  const anim = useRef(new Animated.Value(0)).current;
-  const y = useRef(new Animated.Value(20)).current;
 
   const [nama, setNama] = useState('');
   const [email, setEmail] = useState('');
@@ -31,13 +28,6 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(anim, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(y, { toValue: 0, duration: 600, useNativeDriver: true }),
-    ]).start();
-  }, []);
 
   const handleRegister = async () => {
     if (!nama.trim() || !email.trim() || !password.trim()) {
@@ -60,7 +50,7 @@ export default function RegisterScreen() {
         nim: nim.trim() || undefined,
         role: 'mahasiswa',
       });
-      toast.show('Akun berhasil dibuat. Silakan masuk dengan email dan kata sandimu.');
+      toast.show('Akun berhasil dibuat. Silakan masuk.');
       router.replace('/');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Registrasi gagal. Coba lagi.');
@@ -70,6 +60,12 @@ export default function RegisterScreen() {
   };
 
   const remaining = 8 - password.length;
+
+  const perks = [
+    { icon: 'chatbubble-ellipses-outline', label: 'Teman cerita kapan saja', color: colors.primary },
+    { icon: 'book-outline', label: 'Jurnal suasana hati', color: colors.sage },
+    { icon: 'calendar-outline', label: 'Konseling kampus', color: colors.amber },
+  ];
 
   return (
     <KeyboardAvoidingView
@@ -89,11 +85,27 @@ export default function RegisterScreen() {
           />
         </View>
 
-        <Animated.View style={[s.column, { opacity: anim, transform: [{ translateY: y }] }]}>
-          <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">Buat akun</Text>
-          <Text style={[s.subtitle, { color: colors.onSurfaceVariant }]}>
-            Mulai perjalanan menjaga kesehatan mentalmu hari ini.
-          </Text>
+        <View style={s.column}>
+          {/* Hero: the companion welcomes a new friend */}
+          <NeuView radius={30} style={s.hero}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">Buat akun</Text>
+              <Text style={[s.subtitle, { color: colors.onSurfaceVariant }]}>
+                Mulai perjalanan menjaga kesehatan mentalmu hari ini.
+              </Text>
+            </View>
+            <Companion expression="semangat" size={124} />
+          </NeuView>
+
+          {/* What you get */}
+          <View style={s.perks}>
+            {perks.map((p) => (
+              <View key={p.label} style={s.perk}>
+                <Ionicons name={p.icon as any} size={18} color={p.color} />
+                <Text style={[s.perkText, { color: colors.onSurfaceVariant }]}>{p.label}</Text>
+              </View>
+            ))}
+          </View>
 
           <View style={s.card}>
             <Input
@@ -170,21 +182,25 @@ export default function RegisterScreen() {
               <Text style={[s.footerLink, { color: colors.primary }]}>Masuk</Text>
             </TouchableOpacity>
           </View>
-        </Animated.View>
+        </View>
       </ScrollView>
-
     </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { flexGrow: 1, paddingHorizontal: 24 },
-  topBar: { marginBottom: 24 },
+  scroll: { flexGrow: 1, paddingHorizontal: 20 },
+  topBar: { marginBottom: 16 },
   column: { width: '100%', maxWidth: 440, alignSelf: 'center' },
 
-  title: { fontSize: 30, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.8, marginBottom: 6 },
-  subtitle: { fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 22, marginBottom: 24 },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 20, paddingRight: 8, paddingVertical: 14, marginBottom: 18 },
+  title: { fontSize: 26, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.7 },
+  subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 20 },
+
+  perks: { flexDirection: 'row', gap: 8, marginBottom: 22 },
+  perk: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 2 },
+  perkText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', textAlign: 'center', lineHeight: 16 },
 
   card: { gap: 8, marginBottom: 24 },
   errorTxt: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center', marginTop: 4 },

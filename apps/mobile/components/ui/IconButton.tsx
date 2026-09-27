@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import Animated from 'react-native-reanimated';
+import { usePressScale } from './usePressScale';
 import { Pressable, StyleProp, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, Neu } from '@prototype/ui-shared';
@@ -10,28 +12,39 @@ interface Props {
   color?: string;
   size?: number;
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
 }
 
-// 44px round neumorphic button; sinks in while pressed.
-export const IconButton: React.FC<Props> = ({ icon, label, onPress, color, size = 44, style }) => {
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+// 44px round neumorphic button; sinks in and springs back when pressed.
+export const IconButton: React.FC<Props> = ({ icon, label, onPress, color, size = 44, style, disabled }) => {
   const { colors } = useTheme();
+  const [pressed, setPressed] = useState(false);
+  const press = usePressScale(0.95);
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
+      disabled={disabled}
+      onPressIn={() => { setPressed(true); press.onPressIn(); }}
+      onPressOut={() => { setPressed(false); press.onPressOut(); }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [
+      accessibilityState={{ disabled: !!disabled }}
+      style={[
         {
           width: size, height: size, borderRadius: size / 2,
           alignItems: 'center', justifyContent: 'center',
           backgroundColor: colors.background,
           boxShadow: pressed ? Neu.inset : Neu.raisedSm,
         },
+        disabled && { opacity: 0.4 },
         style,
+        press.style,
       ]}
     >
       <Ionicons name={icon} size={20} color={color ?? colors.onSurface} />
-    </Pressable>
+    </AnimatedPressable>
   );
 };
 

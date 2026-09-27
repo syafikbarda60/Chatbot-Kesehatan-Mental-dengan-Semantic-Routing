@@ -6,6 +6,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { NeuView } from '../ui/NeuView';
+import { PressableScale } from '../ui/PressableScale';
 
 export const DayDivider: React.FC<{ label: string }> = ({ label }) => {
   const { colors } = useTheme();
@@ -31,7 +32,7 @@ export const OpeningPrompts: React.FC<{ onPick: (t: string) => void }> = ({ onPi
     <View style={s.openers}>
       <Text style={[s.openersLabel, { color: colors.onSurfaceVariant }]}>Bingung mulai dari mana? Pilih salah satu:</Text>
       {OPENERS.map((o) => (
-        <Pressable
+        <PressableScale
           key={o.text}
           onPress={() => onPick(o.text)}
           accessibilityRole="button"
@@ -41,7 +42,7 @@ export const OpeningPrompts: React.FC<{ onPick: (t: string) => void }> = ({ onPi
           <Ionicons name={o.icon as any} size={18} color={colors.primary} />
           <Text style={[s.openerText, { color: colors.onSurface }]}>{o.text}</Text>
           <Ionicons name="arrow-forward" size={16} color={colors.textMuted} />
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );
@@ -69,7 +70,7 @@ export const SupportNote: React.FC<NoteProps> = ({ heavy, onPrimary, onDismiss }
           : 'Kadang menuliskannya membantu pikiran terasa lebih lega. Atau lanjut cerita di sini juga boleh.'}
       </Text>
       <View style={s.noteActions}>
-        <Pressable
+        <PressableScale
           onPress={onPrimary}
           accessibilityRole="button"
           style={({ pressed }) => [
@@ -79,10 +80,10 @@ export const SupportNote: React.FC<NoteProps> = ({ heavy, onPrimary, onDismiss }
           ]}
         >
           <Text style={s.noteBtnPrimaryText}>{heavy ? 'Lihat kontak bantuan' : 'Tulis di jurnal'}</Text>
-        </Pressable>
-        <Pressable onPress={onDismiss} accessibilityRole="button" style={s.noteBtnGhost}>
+        </PressableScale>
+        <PressableScale onPress={onDismiss} accessibilityRole="button" style={s.noteBtnGhost}>
           <Text style={[s.noteBtnGhostText, { color: colors.onSurfaceVariant }]}>Lanjut cerita</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </NeuView>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList, Pressable, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,8 +8,12 @@ import { BottomNav, FadeIn, NeuView, Button, ScreenHeader, IconButton, useToast 
 import { Companion } from '../components/chat';
 import { apiGetJournals } from '@prototype/api-client';
 import { MOODS, Mood, moodOf, todayPrompt } from '../constants/moods';
+import { PressableScale } from '../components/ui';
 
-const PAGE = 30;
+// ponytail: fetch all entries once and page on-device (also keeps streak/mood-mix exact);
+// move paging to the API with a total count if someone writes thousands of entries.
+const FETCH_LIMIT = 1000;
+const PER_PAGE = 10;
 const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
 type Row =
@@ -23,9 +27,10 @@ export default function JournalHistoryScreen() {
 
   const [journals, setJournals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<Mood | null>(null);
+  const [page, setPage] = useState(0);
+  const listRef = useRef<FlatList<Row>>(null);
+  const headerH = useRef(0);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -33,21 +38,16 @@ export default function JournalHistoryScreen() {
     }, [])
   );
 
-  const fetchJournals = async (loadMore = false) => {
-    if (isFetchingMore || (!hasMore && loadMore)) return;
-    if (loadMore) setIsFetchingMore(true);
-    else setIsLoading(true);
+  const fetchJournals = async () => {
+    if (!journals.length) setIsLoading(true);
     try {
-      const data = await apiGetJournals(PAGE, loadMore ? journals.length : 0);
-      const newJournals = data.journals || [];
-      setJournals((prev) => (loadMore ? [...prev, ...newJournals] : newJournals));
-      setHasMore(newJournals.length >= PAGE);
+      const data = await apiGetJournals(FETCH_LIMIT, 0);
+      setJournals(data.journals || []);
     } catch (e) {
       console.log('Failed to fetch journals', e);
-      toast.show('Jurnal belum bisa dimuat. Tarik ke bawah atau coba lagi nanti.', 'error');
+      toast.show('Jurnal belum bisa dimuat. Coba lagi nanti.', 'error');
     } finally {
       setIsLoading(false);
-      setIsFetchingMore(false);
     }
   };
 
@@ -68,9 +68,22 @@ export default function JournalHistoryScreen() {
     return { todayEntry, streak, counts, withMood: counts.reduce((a, c) => a + c.n, 0) };
   }, [journals]);
 
+  const filtered = useMemo(() => (filter ? journals.filter((j) => j.mood === filter) : journals), [journals, filter]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const current = Math.min(page, pageCount - 1);
+
+  const goToPage = (p: number) => {
+    setPage(p);
+    listRef.current?.scrollToOffset({ offset: headerH.current, animated: true });
+  };
+  const pickFilter = (m: Mood | null) => {
+    setFilter(m);
+    setPage(0);
+  };
+
   const rows: Row[] = useMemo(() => {
     const out: Row[] = [];
-    const list = filter ? journals.filter((j) => j.mood === filter) : journals;
+    const list = filtered.slice(current * PER_PAGE, (current + 1) * PER_PAGE);
     let month = '';
     list.forEach((j, i) => {
       const d = new Date(j.created_at);
@@ -84,7 +97,7 @@ export default function JournalHistoryScreen() {
       out.push({ type: 'entry', key: j.journal_id, item: j, last: !next || nextMonth !== m });
     });
     return out;
-  }, [journals, filter]);
+  }, [filtered, current]);
 
   const openEntry = (item: any) =>
     router.push({
@@ -100,7 +113,7 @@ export default function JournalHistoryScreen() {
     const d = new Date(j.created_at);
     const mood = moodOf(j.mood);
     return (
-      <FadeIn delay={0}>
+      <FadeIn>
         <View style={s.entryRow}>
           {/* Date + timeline rail */}
           <View style={s.rail}>
@@ -112,7 +125,7 @@ export default function JournalHistoryScreen() {
             {!row.last && <View style={[s.line, { backgroundColor: colors.outlineVariant }]} />}
           </View>
 
-          <Pressable
+          <PressableScale
             onPress={() => openEntry(j)}
             accessibilityRole="button"
             accessibilityLabel={`Jurnal ${d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}${mood ? ', merasa ' + mood.label : ''}`}
@@ -130,18 +143,18 @@ export default function JournalHistoryScreen() {
               </Text>
             </View>
             <Text style={[s.excerpt, { color: colors.onSurface }]} numberOfLines={3}>{j.content}</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </FadeIn>
     );
   };
 
   const header = (
-    <View style={s.headerWrap}>
+    <View style={s.headerWrap} onLayout={(e) => { headerH.current = e.nativeEvent.layout.height; }}>
       <ScreenHeader
         title="Jurnal"
         subtitle="Catatan perjalanan perasaanmu."
-        right={<IconButton icon="add" label="Tulis jurnal baru" color={colors.primary} onPress={() => router.push('/journal')} />}
+        right={<IconButton icon="add" label="Tulis jurnal baru" color={colors.sage} onPress={() => router.push('/journal')} />}
       />
 
       {/* ── Today, told by the companion ── */}
@@ -155,12 +168,12 @@ export default function JournalHistoryScreen() {
               {summary.todayEntry ? 'Kamu sudah menulis hari ini.' : todayPrompt()}
             </Text>
           </View>
-          <Companion expression={summary.todayEntry ? 'jempol' : 'menyapa'} size={92} interactive={false} />
+          <Companion expression={summary.todayEntry ? 'jempol' : 'menyapa'} size={116} />
         </View>
         {summary.todayEntry ? (
           <Button label="Baca catatan hari ini" variant="secondary" onPress={() => openEntry(summary.todayEntry)} />
         ) : (
-          <Button label="Tulis sekarang" onPress={() => router.push('/journal')} icon={<Ionicons name="create-outline" size={18} color="#fff" />} />
+          <Button label="Tulis sekarang" accent={colors.sage} onPress={() => router.push('/journal')} icon={<Ionicons name="create-outline" size={18} color="#fff" />} />
         )}
       </NeuView>
 
@@ -169,7 +182,7 @@ export default function JournalHistoryScreen() {
           {/* ── Stats + mood mix ── */}
           <View style={s.stats}>
             <View style={s.statItem}>
-              <Text style={[s.statValue, { color: colors.onSurface }]}>{journals.length}{hasMore ? '+' : ''}</Text>
+              <Text style={[s.statValue, { color: colors.onSurface }]}>{journals.length}</Text>
               <Text style={[s.statLabel, { color: colors.onSurfaceVariant }]}>catatan</Text>
             </View>
             <View style={[s.statDivider, { backgroundColor: colors.outlineVariant }]} />
@@ -202,12 +215,12 @@ export default function JournalHistoryScreen() {
 
           {/* ── Mood filter ── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filters}>
-            {[{ key: null, label: 'Semua', color: colors.primary, icon: 'albums-outline' }, ...MOODS].map((m: any) => {
+            {[{ key: null, label: 'Semua', color: colors.sage, icon: 'albums-outline' }, ...MOODS].map((m: any) => {
               const active = filter === m.key;
               return (
-                <Pressable
+                <PressableScale
                   key={m.label}
-                  onPress={() => setFilter(m.key)}
+                  onPress={() => pickFilter(m.key)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: active }}
                   style={[s.filterChip, { backgroundColor: colors.background, boxShadow: active ? Neu.inset : Neu.raisedSm }]}
@@ -221,7 +234,7 @@ export default function JournalHistoryScreen() {
                   >
                     {m.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </ScrollView>
@@ -238,12 +251,11 @@ export default function JournalHistoryScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={rows}
           keyExtractor={(r) => r.key}
           contentContainerStyle={[s.listContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
           renderItem={renderRow}
-          onEndReached={() => fetchJournals(true)}
-          onEndReachedThreshold={0.5}
           ListHeaderComponent={header}
           ListEmptyComponent={
             filter ? (
@@ -257,10 +269,8 @@ export default function JournalHistoryScreen() {
             )
           }
           ListFooterComponent={
-            isFetchingMore ? (
-              <View style={{ paddingVertical: 20 }}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
+            pageCount > 1 ? (
+              <Pagination page={current} count={pageCount} total={filtered.length} onChange={goToPage} />
             ) : null
           }
         />
@@ -271,7 +281,62 @@ export default function JournalHistoryScreen() {
   );
 }
 
+// Up to 5 pages: all of them. More: first, current, last; gaps become "…" (fits a 320dp screen)
+const pageItems = (page: number, count: number): (number | null)[] => {
+  const out: (number | null)[] = [];
+  for (let i = 0; i < count; i++) {
+    if (count <= 5 || i === 0 || i === count - 1 || i === page) out.push(i);
+    else if (out[out.length - 1] !== null) out.push(null);
+  }
+  return out;
+};
+
+function Pagination({ page, count, total, onChange }: { page: number; count: number; total: number; onChange: (p: number) => void }) {
+  const { colors } = useTheme();
+  const from = page * PER_PAGE + 1;
+  const to = Math.min(total, (page + 1) * PER_PAGE);
+  return (
+    <View style={s.pager}>
+      <Text style={[s.pagerInfo, { color: colors.onSurfaceVariant }]}>
+        Menampilkan {from}–{to} dari {total} catatan
+      </Text>
+      <View style={s.pagerRow}>
+        <IconButton icon="chevron-back" label="Halaman sebelumnya" onPress={() => onChange(page - 1)} disabled={page === 0} />
+        {pageItems(page, count).map((p, i) =>
+          p === null ? (
+            <Text key={`gap-${i}`} style={[s.pageGap, { color: colors.textMuted }]}>…</Text>
+          ) : (
+            <PressableScale
+              key={p}
+              onPress={() => onChange(p)}
+              accessibilityRole="button"
+              accessibilityLabel={`Halaman ${p + 1}`}
+              accessibilityState={{ selected: p === page }}
+              style={[
+                s.pageBtn,
+                p === page
+                  ? { backgroundColor: colors.sage }
+                  : { backgroundColor: colors.background, boxShadow: Neu.raisedSm },
+              ]}
+            >
+              <Text style={[s.pageText, { color: p === page ? '#fff' : colors.onSurface }]}>{p + 1}</Text>
+            </PressableScale>
+          )
+        )}
+        <IconButton icon="chevron-forward" label="Halaman berikutnya" onPress={() => onChange(page + 1)} disabled={page === count - 1} />
+      </View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
+  pager: { alignItems: 'center', gap: 12, marginTop: 8 },
+  pagerInfo: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
+  pagerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  pageBtn: { minWidth: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  pageText: { fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
+  pageGap: { fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', paddingHorizontal: 2 },
+
   root: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 20 },
