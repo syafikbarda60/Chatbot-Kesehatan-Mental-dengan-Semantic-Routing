@@ -19,6 +19,21 @@ Counselors review through `/counselor/instrument-reviews` (`GET` list/detail,
 requires a current-revision approval for custom instruments; published/archived versions keep the
 DB immutability triggers ([postgresql-conventions.md](postgresql-conventions.md)).
 
+## DASS-21 batch editor
+
+The admin edits the standard DASS-21 as one batch of 21 items at `/instruments/dass21`
+(`routes/dass21_batch.py`, rules in `core/dass21_batch.py`). A batch is an instrument version
+read through its latest review: `published` = APPROVED, a `pending` review = PENDING_VALIDATION,
+`revision_requested` on the current revision = REJECTED, otherwise DRAFT.
+
+- `GET /admin/dass21/batch/current` — the open draft, else the published version.
+- `PUT /admin/dass21/batch/draft` `{questions, updatedAt?}` — edits a DRAFT/REJECTED in place
+  (the revision bump clears the rejection), opens version+1 from an APPROVED one, 409 while
+  pending or when `updatedAt` is stale. Only wording is written; categories follow the blueprint.
+- `POST /admin/dass21/batch/{id}/submit` — DRAFT only; 422 `{message, errors}` when invalid.
+- Counselors decide through the existing `/counselor/instrument-reviews/...` routes; for the
+  DASS-21 an approval publishes the version (`publish_approved_dass21_version()`, migration 012).
+
 ## Student support & academic structure
 
 - `PUT /admin/students/{id}/profile` updates identity, academic assignment, and the separately
