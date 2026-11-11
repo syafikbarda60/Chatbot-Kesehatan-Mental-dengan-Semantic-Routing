@@ -110,6 +110,20 @@ def login(request: LoginRequest):
     }
 
 
+@router.post("/auth/logout")
+def logout(user=Depends(get_current_user)):
+    # MASVS-AUTH-1: deleting the token on the phone alone left it valid for its whole lifetime;
+    # revoke it server-side until it would have expired anyway.
+    if user.jti:
+        query(
+            "insert into revoked_tokens (jti, user_id, expires_at) values (%s, %s, to_timestamp(%s)) "
+            "on conflict (jti) do nothing",
+            (user.jti, user.id, user.exp),
+            user_id=user.id,
+        )
+    return {"message": "Berhasil keluar"}
+
+
 # Shown in the app as is. Each new request replaces the last code, which is the usual cause
 RESET_REJECTED = "Kode OTP salah, kedaluwarsa, atau sudah diganti kode baru. Pakai kode dari email terbaru."
 

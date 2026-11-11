@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import jwt
 from dotenv import load_dotenv
@@ -16,7 +16,8 @@ SECRET = os.getenv("JWT_SECRET", "")
 if not SECRET:
     raise RuntimeError("JWT_SECRET wajib diisi di .env")
 ALGORITHM = "HS256"
-EXPIRES_IN = int(os.getenv("JWT_EXPIRES_MINUTES", "10080")) * 60  # 7 hari
+# MASVS-AUTH-1: a stolen token is only good until it expires, so keep that short (24 jam).
+EXPIRES_IN = int(os.getenv("JWT_EXPIRES_MINUTES", "1440")) * 60
 
 bearer_scheme = HTTPBearer()
 
@@ -29,12 +30,16 @@ class AuthUser:
     # baked into a JWT would outlive a demotion. Empty only on a hand-built instance, and
     # require_role matches it against no role, so that case fails closed.
     role: str = ""
+    # Token id and expiry, so /auth/logout can revoke exactly this token until it would expire
+    jti: str | None = None
+    exp: int | None = None
 
 
 def create_token(user_id: str, email: str) -> str:
     payload = {
         "sub": str(user_id),
         "email": email,
+        "jti": str(uuid4()),
         "exp": datetime.now(timezone.utc) + timedelta(seconds=EXPIRES_IN),
     }
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
@@ -49,6 +54,8 @@ def get_current_user(
         # invalid-uuid error on the first query.
         user_id = str(UUID(payload["sub"]))
         email = payload.get("email", "")
+        # Tokens minted before jti existed carry none; they cannot be revoked and simply expire
+        jti = str(UUID(payload["jti"])) if payload.get("jti") else None
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -61,13 +68,24 @@ def get_current_user(
     # token kept full access until it expired, and every write failed on the users foreign
     # key instead of saying the session was over. Deliberately not wrapped in the 401 above:
     # a database outage is not an expired session and must not log everybody out.
-    rows = query("select role from users where user_id = %s", (user_id,), user_id=user_id)
+    # The same lookup also refuses a token revoked by /auth/logout (MASVS-AUTH-1).
+    rows = query(
+        "select role, exists(select 1 from revoked_tokens where jti = %s) as revoked "
+        "from users where user_id = %s",
+        (jti, user_id),
+        user_id=user_id,
+    )
     if not rows:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Akun untuk sesi ini sudah tidak ada, silakan masuk lagi",
         )
-    return AuthUser(id=user_id, email=email, role=rows[0]["role"])
+    if rows[0].get("revoked"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sesi ini sudah keluar, silakan masuk lagi",
+        )
+    return AuthUser(id=user_id, email=email, role=rows[0]["role"], jti=jti, exp=payload.get("exp"))
 
 
 def require_role(*roles: str):
