@@ -1,14 +1,13 @@
-// Profil's notification card: is Sajiwa allowed to notify on this phone, how to keep this
-// brand's battery manager from swallowing greetings, and a button to see one right now.
+// Profil's notification card: is Sajiwa allowed to notify on this phone, and how to keep this
+// brand's battery manager from swallowing greetings.
 import React, { useCallback, useState } from 'react';
 import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth, useTheme, Neu } from '@prototype/ui-shared';
+import { useTheme, Neu } from '@prototype/ui-shared';
 import * as Notifications from '../hooks/notifications';
-import { sendSampleCheckIn } from '../hooks/useCheckIn';
 import { notificationTips } from '../hooks/notificationTips';
-import { Button, useToast } from './ui';
+import { Button } from './ui';
 
 // Android reports the maker (e.g. "Xiaomi"); iOS has none to report, and on web the whole object is
 // missing. Read at import, so it must not throw there: the card itself only hides on web later.
@@ -17,10 +16,7 @@ const brand = constants?.Brand ?? constants?.Manufacturer ?? null;
 
 export function NotificationSettings() {
   const { colors } = useTheme();
-  const { user } = useAuth();
-  const toast = useToast();
   const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [sending, setSending] = useState(false);
   const tips = notificationTips(Platform.OS, brand);
 
   // Rechecked on return from the system settings, where the student may have just switched it on
@@ -29,15 +25,6 @@ export function NotificationSettings() {
     Notifications.getPermissionsAsync().then((p) => setAllowed(p.status === 'granted')).catch(() => setAllowed(null));
   }, []));
   if (Platform.OS === 'web') return null;
-
-  const sample = async () => {
-    setSending(true);
-    try {
-      const sent = await sendSampleCheckIn(user?.name?.split(' ')[0] ?? '');
-      setAllowed(sent);
-      toast.show(sent ? 'Sapaan contoh dikirim. Cek bagian atas layar HP-mu.' : 'Izinkan notifikasi Sajiwa dulu di pengaturan.', sent ? 'success' : 'error');
-    } finally { setSending(false); }
-  };
 
   return <View style={{ gap: 12 }}>
     <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">Notifikasi</Text>
@@ -54,7 +41,6 @@ export function NotificationSettings() {
         <Text style={[s.stepText, { color: colors.onSurfaceVariant }]}>{step}</Text>
       </View>)}
       <View style={s.actions}>
-        <Button label="Coba sapaan" variant="secondary" loading={sending} onPress={sample} style={{ flex: 1 }} />
         <Button label="Buka pengaturan" variant="ghost" onPress={() => { Linking.openSettings().catch(() => {}); }} style={{ flex: 1 }} />
       </View>
     </View>

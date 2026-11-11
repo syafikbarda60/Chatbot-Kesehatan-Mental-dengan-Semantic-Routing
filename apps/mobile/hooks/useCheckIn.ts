@@ -106,20 +106,6 @@ async function welcome(userId: string, name: string) {
   await AsyncStorage.setItem(WELCOMED, [done, userId].filter(Boolean).join(',')).catch(() => {});
 }
 
-/** Profil's "coba" button: today's greeting, now, so the student sees how it looks on their phone. */
-export async function sendSampleCheckIn(name: string) {
-  if (!native) return false;
-  await plan(name);
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return false;
-  const prompt = PROMPTS[Math.floor(Date.now() / 86_400_000) % PROMPTS.length](name);
-  await Notifications.scheduleNotificationAsync({
-    content: { ...prompt, ...LOOK, data: { kind: KIND } },
-    trigger: Platform.OS === 'android' ? { channelId: KIND } : null,
-  });
-  return true;
-}
-
 function open(response: Notifications.NotificationResponse) {
   if (response.notification.request.content.data?.kind !== KIND) return;
   const draft = ANSWERS.find((a) => a.id === response.actionIdentifier)?.draft;
