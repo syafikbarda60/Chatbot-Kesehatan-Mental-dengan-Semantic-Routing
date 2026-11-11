@@ -5,7 +5,7 @@ import { previewRequest } from '@/lib/previewData';
 export const AUTH_EXPIRED_EVENT = 'sajiwa:auth-expired';
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(public readonly status: number, message: string, public readonly errors: string[] = []) {
     super(message);
     this.name = 'ApiError';
   }
@@ -60,7 +60,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       422: 'Periksa kembali data yang dimasukkan.',
       429: 'Terlalu banyak percobaan. Coba lagi beberapa saat.',
     };
-    throw new ApiError(response.status, messages[response.status] ?? 'Layanan sedang bermasalah. Coba lagi beberapa saat.');
+    // A conflict or rule violation carries the server's own Indonesian explanation
+    // (`detail` as a string, or `{ message, errors }`); anything else keeps the generic copy.
+    const detail = (payload as { detail?: unknown } | null)?.detail;
+    const body = typeof detail === 'object' && detail !== null ? detail as { message?: unknown; errors?: unknown } : {};
+    const serverMessage = typeof detail === 'string' ? detail : typeof body.message === 'string' ? body.message : undefined;
+    const errors = Array.isArray(body.errors) ? body.errors.filter((item): item is string => typeof item === 'string') : [];
+    const fallback = messages[response.status] ?? 'Layanan sedang bermasalah. Coba lagi beberapa saat.';
+    throw new ApiError(response.status, (response.status === 409 || response.status === 422) && serverMessage ? serverMessage : fallback, errors);
   }
 
   return payload as T;
