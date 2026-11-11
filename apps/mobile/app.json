@@ -17,7 +17,15 @@
         "backgroundColor": "#E4E8EE"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "id.ac.undip.sajiwa"
+      "package": "id.ac.undip.sajiwa",
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro",
