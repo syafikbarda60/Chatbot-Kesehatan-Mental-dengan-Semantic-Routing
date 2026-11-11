@@ -51,7 +51,19 @@
         }
       ],
       "expo-status-bar",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "./plugins/withNetworkSecurity",
+        {
+          "domain": "10.0.2.2",
+          "caCert": "./certs/staging-ca.crt",
+          "pins": [
+            "i0wtQG2sbRzBWNG5833VypEDAtmif89OZBPt52NF+rs=",
+            "dyy8P4n2yR887iB91bm0rhUzneDX5etqryKt0Ynr7LI="
+          ],
+          "pinExpiration": "2027-11-11"
+        }
+      ]
     ]
   }
 }
