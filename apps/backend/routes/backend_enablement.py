@@ -197,6 +197,10 @@ def _decide(assessment_version_review_id, body, counselor, decision):
         if review["definition_revision"] != body.expected_revision or review["current_revision"] != body.expected_revision:
             raise HTTPException(409, "Definisi instrumen telah berubah; keputusan tidak dapat diterapkan")
         row = conn.execute("update assessment_version_reviews set status=%s,reviewer_user_id=%s,decided_at=now(),decision_comment=%s,updated_at=now() where assessment_version_review_id=%s returning *", (decision, counselor.id, body.comment, str(assessment_version_review_id))).fetchone()
+        if decision == "approved":
+            # For the standard DASS-21 the approval is the publication (migration 012); the
+            # function does nothing for custom instruments, which keep the admin publish step.
+            conn.execute("select publish_approved_dass21_version(%s)", (str(row["instrument_version_id"]),))
     return {"review": row}
 
 

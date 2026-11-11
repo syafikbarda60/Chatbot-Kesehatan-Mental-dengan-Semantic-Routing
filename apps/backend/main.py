@@ -16,6 +16,7 @@ from routes.iteration3 import admin_router as iteration3_admin_router, student_r
 from routes.iteration4 import admin_router as iteration4_admin_router, assessment_router as iteration4_assessment_router
 from routes.backend_enablement import admin_router as backend_enablement_admin_router, counselor_router as backend_enablement_counselor_router
 from routes.counselor import admin_router as counselor_admin_router, router as counselor_router
+from routes.dass21_batch import admin_router as dass21_batch_admin_router
 from routes.realtime import lifespan as realtime_lifespan, router as realtime_router
 from routes.notifications import router as notifications_router
 
@@ -75,6 +76,7 @@ app.include_router(iteration4_admin_router)
 app.include_router(iteration4_assessment_router)
 app.include_router(backend_enablement_admin_router)
 app.include_router(backend_enablement_counselor_router)
+app.include_router(dass21_batch_admin_router)
 app.include_router(counselor_router)
 app.include_router(counselor_admin_router)
 app.include_router(realtime_router)
