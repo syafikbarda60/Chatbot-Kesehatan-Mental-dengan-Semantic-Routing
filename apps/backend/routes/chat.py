@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from dotenv import load_dotenv
 import json
@@ -21,7 +21,8 @@ rag_router = APIRouter(prefix="/rag", tags=["RAG"])
 chat_router = APIRouter(prefix="/chat", tags=["Chat"])
 
 class ChatRequest(BaseModel):
-    message: str
+    # MASVS-CODE-4: the app caps input at 500 characters; the server must not rely on that
+    message: str = Field(max_length=1000)
     session_id: Optional[str] = None
     # No user_id: identity always comes from the JWT (`get_current_user`), never the body.
 

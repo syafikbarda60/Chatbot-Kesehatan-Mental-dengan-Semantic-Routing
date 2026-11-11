@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
 from auth import get_current_user
@@ -10,13 +10,17 @@ from core.db import query
 router = APIRouter(prefix="/journal", tags=["Journal"])
 
 
+# MASVS-CODE-4: bound what a client may send; a 1 MB entry used to be stored as is.
+JOURNAL_MAX_CHARS = 10_000
+
+
 class SaveJournalRequest(BaseModel):
-    content: str
+    content: str = Field(max_length=JOURNAL_MAX_CHARS)
     mood: Optional[Literal["calm", "anxious", "focused", "tired"]] = None
 
 
 class UpdateJournalRequest(BaseModel):
-    content: Optional[str] = None
+    content: Optional[str] = Field(default=None, max_length=JOURNAL_MAX_CHARS)
     mood: Optional[Literal["calm", "anxious", "focused", "tired"]] = None
 
 
@@ -39,7 +43,12 @@ def save_journal(request: SaveJournalRequest, user=Depends(get_current_user)):
 
 
 @router.get("")
-def get_journals(user=Depends(get_current_user), limit: int = 20, offset: int = 0):
+def get_journals(
+    user=Depends(get_current_user),
+    # A negative limit reached SQL and came back as a 500
+    limit: int = Query(20, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
     journals = query(
         "select journal_id, content, mood, created_at, updated_at from journals "
         "where user_id = %s order by created_at desc limit %s offset %s",
