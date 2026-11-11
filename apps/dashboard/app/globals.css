@@ -818,3 +818,4 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--color-accent);
 .time-input { display: flex; align-items: center; gap: .35rem; }
 .time-input select { flex: 1; min-width: 4.5rem; }
 .time-input > span { font-weight: 700; color: var(--color-text-muted); }
+.dass21-status { display:flex;flex-wrap:wrap;align-items:center;gap:.5rem; }.dass21-note { flex-basis:100%;color:var(--color-text-muted); }.dass21-table th:first-child { width:3.5rem; }.dass21-table th:last-child { width:9rem; }.dass21-table input { width:100%;min-height:2.3rem;padding:.4rem .6rem;border:1px solid var(--color-border);border-radius:var(--radius-sm,.5rem);background:var(--color-surface);color:var(--color-text);font:inherit; }.dass21-table input:disabled { background:var(--color-surface-muted);color:var(--color-text-muted); }
