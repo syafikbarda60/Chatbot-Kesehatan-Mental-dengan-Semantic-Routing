@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+#
+# commit-msg hook — enforces the Conventional Commits v1.0.0 spec.
+# https://www.conventionalcommits.org/en/v1.0.0/
+#
+# Enable (npm install does this automatically):
+#   git config core.hooksPath .githooks
+# Bypass once (e.g. a WIP commit):
+#   git commit --no-verify
+#
+# Rules enforced:
+#   <type>[(scope)][!]: <description>
+#   - type is one of the allowed list below
+#   - scope, when present, is lowercase [a-z0-9._/-]
+#   - a single '!' marks a breaking change
+#   - description is non-empty, starts right after ': ', no trailing period
+#   - subject is at most 100 characters
+# Merge/revert/fixup/squash and empty messages are passed through.
+
+msg_file="$1"
+[ -n "$msg_file" ] || { echo "commit-msg: missing commit message file" >&2; exit 1; }
+
+# First non-comment, non-blank line is the subject.
+subject=$(sed '/^#/d' "$msg_file" | sed '/^[[:space:]]*$/d' | head -n1)
+
+case "$subject" in
+  ""|Merge\ *|Revert\ *|fixup!\ *|squash!\ *) exit 0 ;;
+esac
+
+types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+pattern="^(${types})(\([a-z0-9._/-]+\))?!?: .+"
+
+fail() {
+  echo "" >&2
+  echo "  ✖ invalid commit message" >&2
+  echo "    $subject" >&2
+  echo "" >&2
+  echo "    $1" >&2
+  echo "" >&2
+  echo "  Format: <type>[(scope)][!]: <description>" >&2
+  echo "  Types:  $(echo "$types" | tr '|' ' ')" >&2
+  echo "  Examples:" >&2
+  echo "    feat(auth): add OTP password reset" >&2
+  echo "    fix(mobile): reset chat scroll on session change" >&2
+  echo "    feat(api)!: drop v1 endpoints" >&2
+  echo "" >&2
+  echo "  https://www.conventionalcommits.org/en/v1.0.0/" >&2
+  echo "" >&2
+  exit 1
+}
+
+printf '%s' "$subject" | grep -Eq "$pattern" \
+  || fail "Does not match the Conventional Commits format."
+
+printf '%s' "$subject" | grep -Eq '\.$' \
+  && fail "Description must not end with a period."
+
+if [ "${#subject}" -gt 100 ]; then
+  fail "Subject is ${#subject} characters; keep it to 100 or fewer."
+fi
+
+exit 0

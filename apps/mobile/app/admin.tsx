@@ -16,11 +16,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
-import { apiFetch, apiLogout, getStoredUserSync } from '@prototype/api-client';
+import { FADE_MS } from '../components/ui/motion';
+import { apiFetch, apiLogout, clearAuth, getStoredUser } from '@prototype/api-client';
+
 
 interface UserRow {
   user_id: string;
-  nama: string;
+  name: string;
   email: string;
   nim?: string;
   role: string;
@@ -51,10 +53,9 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const u = getStoredUserSync<{ nama: string }>();
-    if (u?.nama) setAdminName(u.nama);
+    getStoredUser<{ name: string }>().then((u) => { if (u?.name) setAdminName(u.name); });
     fetchUsers();
-    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: FADE_MS, useNativeDriver: true }).start();
   }, []);
 
   const fetchUsers = async () => {
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
       { text: 'Batal', style: 'cancel' },
       {
         text: 'Logout', style: 'destructive',
-        onPress: async () => { await apiLogout(); router.replace('/'); },
+        onPress: async () => { await clearAuth(); router.replace('/'); },
       },
     ]);
   };
@@ -176,7 +177,7 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
 
 function UserCard({ user, colors }: { user: UserRow; colors: any }) {
   const roleColor = ROLE_COLORS[user.role] || '#6b7280';
-  const initials = (user.nama || user.email).slice(0, 2).toUpperCase();
+  const initials = (user.name || user.email).slice(0, 2).toUpperCase();
   const date = new Date(user.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
@@ -185,7 +186,7 @@ function UserCard({ user, colors }: { user: UserRow; colors: any }) {
         <Text style={[s.avatarTxt, { color: roleColor }]}>{initials}</Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[s.userName, { color: colors.onSurface }]} numberOfLines={1}>{user.nama || '—'}</Text>
+        <Text style={[s.userName, { color: colors.onSurface }]} numberOfLines={1}>{user.name || '—'}</Text>
         <Text style={[s.userEmail, { color: colors.onSurfaceVariant }]} numberOfLines={1}>{user.email}</Text>
         {user.nim && <Text style={[s.userNim, { color: colors.outline }]}>NIM: {user.nim}</Text>}
       </View>

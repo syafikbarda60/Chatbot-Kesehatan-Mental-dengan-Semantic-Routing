@@ -1,19 +1,23 @@
-// Non-blocking feedback, told by the companion: a small face + speech bubble that drops in under
-// the status bar, never covers the page or blocks touches, and dismisses itself (or on tap).
-// Use for "saved / failed" results; keep real modals for decisions (e.g. delete).
+// Non-blocking feedback, told by the companion. It arrives as a frosted glass sheet that slides
+// down from the top edge: what's under it is blurred so the message stands out, but it's anchored
+// to the screen edge (not floating over content) and the rest of the page stays usable.
+// A thin bar shows the time left; tap to dismiss. Use for "saved / failed"; keep dialogs for decisions.
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { Animated, Easing, Image, Pressable, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, Text, View, StyleSheet, useWindowDimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme, Neu } from '@prototype/ui-shared';
+import { useTheme } from '@prototype/ui-shared';
 import type { Expression } from '@prototype/utils';
 import { CHARACTER } from '../../constants/character';
-
-// The companion's face carries the tone, so the bubble needs no icons or colored stripes
-const FACE: Record<'success' | 'error' | 'info', Expression> = { success: 'jempol', error: 'bingung', info: 'senang' };
+import { haptic } from './haptics';
+import { EXIT_EASING_RN, EXIT_MS, SPRING_FILL } from './motion';
 
 type ToastType = 'success' | 'error' | 'info';
 interface ToastState { type: ToastType; message: string; id: number }
 interface ToastApi { show: (message: string, type?: ToastType) => void }
+
+// The companion's face carries the tone; the timer bar repeats it in color
+const FACE: Record<ToastType, Expression> = { success: 'jempol', error: 'bingung', info: 'senang' };
 
 const ToastContext = createContext<ToastApi>({ show: () => {} });
 export const useToast = () => useContext(ToastContext);
@@ -22,77 +26,107 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
-  const compact = width < 380; // small phones: smaller face and text so the bubble keeps room
+  const compact = width < 380;
+
   const [toast, setToast] = useState<ToastState | null>(null);
-  const anim = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(0)).current; // 0 hidden, 1 shown
+  const timeLeft = useRef(new Animated.Value(1)).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hide = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    Animated.timing(anim, { toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() =>
+    timeLeft.stopAnimation();
+    Animated.timing(slide, { toValue: 0, duration: EXIT_MS, easing: EXIT_EASING_RN, useNativeDriver: true }).start(() =>
       setToast(null),
     );
-  }, [anim]);
+  }, [slide, timeLeft]);
 
   const show = useCallback(
     (message: string, type: ToastType = 'success') => {
       if (timer.current) clearTimeout(timer.current);
-      setToast({ message, type, id: Date.now() });
-      anim.setValue(0);
-      Animated.spring(anim, { toValue: 1, friction: 7, tension: 90, useNativeDriver: true }).start();
       // Longer messages and errors stay a little longer
-      timer.current = setTimeout(hide, Math.min(6000, 2400 + message.length * 30) + (type === 'error' ? 1200 : 0));
+      const duration = Math.min(6000, 2600 + message.length * 30) + (type === 'error' ? 1200 : 0);
+      setToast({ message, type, id: Date.now() });
+      slide.setValue(0);
+      timeLeft.setValue(1);
+      // Spring, not a fixed-length ease: the sheet decelerates into place the way iOS
+      // banners do. Clamped, because any overshoot would open a gap above the top edge.
+      Animated.spring(slide, { toValue: 1, ...SPRING_FILL, useNativeDriver: true }).start();
+      // Success and failure get the matching iOS notification tap; plain info stays silent.
+      if (type === 'success') haptic.success();
+      else if (type === 'error') haptic.error();
+      Animated.timing(timeLeft, { toValue: 0, duration, easing: Easing.linear, useNativeDriver: true }).start();
+      timer.current = setTimeout(hide, duration);
     },
-    [anim, hide],
+    [slide, timeLeft, hide],
   );
+
+  const tone = toast?.type === 'error' ? colors.error : toast?.type === 'info' ? colors.primary : colors.sage;
 
   return (
     <ToastContext.Provider value={{ show }}>
       {children}
+
       {toast && (
-        // box-none: only the toast itself is touchable, the page underneath stays usable
-        <View style={[s.host, { top: insets.top + 6 }]}>
-          <Animated.View
-            style={{
-              width: '100%', // definite width so the bubble wraps instead of running off-screen
-              alignItems: 'center',
-              opacity: anim,
-              transform: [
-                { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-28, 0] }) },
-                { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) },
-              ],
-            }}
+        <Animated.View
+          style={[
+            s.sheet,
+            {
+              opacity: slide,
+              transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [-160, 0] }) }],
+            },
+          ]}
+        >
+          <Pressable
+            onPress={hide}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            accessibilityLabel={`Sajiwa: ${toast.message}`}
+            accessibilityHint="Ketuk untuk menutup"
+            style={s.clip}
           >
-            <Pressable
-              onPress={hide}
-              accessibilityRole="alert"
-              accessibilityLiveRegion="polite"
-              accessibilityLabel={`Sajiwa: ${toast.message}`}
-              accessibilityHint="Ketuk untuk menutup"
-              style={s.row}
-            >
-              {/* The sticker already has its own white die-cut border: no container needed */}
+            {/* Frosted glass: blur of what's underneath + a tint so text always has contrast */}
+            <BlurView
+              intensity={Platform.OS === 'android' ? 40 : 60}
+              tint="light"
+              // No Android blur since SDK 55 (it needs a <BlurTargetView> around the
+              // whole screen); the tint below keeps the toast readable on its own
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={[StyleSheet.absoluteFill, s.tint]} />
+
+            <View style={[s.row, { paddingTop: insets.top + 10 }]}>
               <Image source={CHARACTER[FACE[toast.type]]} style={compact ? s.faceSm : s.face} resizeMode="contain" />
-              <View style={[s.bubble, { backgroundColor: colors.background, boxShadow: Neu.raised }]}>
-                <Text style={[s.text, compact && s.textSm, { color: colors.onSurface }]}>{toast.message}</Text>
-              </View>
-            </Pressable>
-          </Animated.View>
-        </View>
+              <Text style={[s.text, compact && s.textSm, { color: colors.onSurface }]}>{toast.message}</Text>
+            </View>
+
+            {/* Time left before it tucks itself away */}
+            <View style={s.track}>
+              <Animated.View style={[s.bar, { backgroundColor: tone, transform: [{ scaleX: timeLeft }] }]} />
+            </View>
+          </Pressable>
+        </Animated.View>
       )}
     </ToastContext.Provider>
   );
 };
 
 const s = StyleSheet.create({
-  host: { position: 'absolute', left: 12, right: 12, alignItems: 'center', zIndex: 1000, pointerEvents: 'box-none' },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, maxWidth: 440 },
-  face: { width: 58, height: 58, marginBottom: -6 },
-  faceSm: { width: 46, height: 46, marginBottom: -4 },
-  // Speech bubble whose tail corner points at the companion, like its chat bubbles
-  bubble: { flexShrink: 1, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 18, borderBottomLeftRadius: 6 },
-  text: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 20 },
-  textSm: { fontSize: 13, lineHeight: 18 },
+  // Anchored to the top edge, full width: reads as part of the screen, not a sticker on top of it
+  sheet: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
+    borderBottomLeftRadius: 28, borderBottomRightRadius: 28,
+    boxShadow: '0px 12px 28px rgba(28,36,71,0.16)',
+  },
+  clip: { overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  tint: { backgroundColor: 'rgba(228,232,238,0.72)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingBottom: 14, maxWidth: 560, width: '100%', alignSelf: 'center' },
+  face: { width: 54, height: 54 },
+  faceSm: { width: 44, height: 44 },
+  text: { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 21 },
+  textSm: { fontSize: 14, lineHeight: 19 },
+  track: { height: 3, marginHorizontal: 28, marginBottom: 10, borderRadius: 2, backgroundColor: 'rgba(28,36,71,0.08)', overflow: 'hidden' },
+  bar: { height: 3, borderRadius: 2, transformOrigin: 'left' },
 });
 
 export default ToastProvider;

@@ -1,9 +1,9 @@
--- Sanctuary schema — pure PostgreSQL 17 + pgvector.
+-- Sajiwa schema — pure PostgreSQL 17 + pgvector.
 -- Applied once by docker compose on an empty volume (db/init/*.sql, alphabetical).
 --
 -- RLS identity: the backend sets it per transaction with
 --   select set_config('app.current_user_id', <uuid>, true)
--- and connects as the non-superuser role `sanctuary_app` (created in 02_auth.sql),
+-- and connects as the non-superuser role `sajiwa_app` (created in 02_auth.sql),
 -- so these policies are actually enforced.
 
 create extension if not exists vector;
@@ -189,16 +189,37 @@ create trigger booking_restore_jadwal
   after update on booking_konsultasi
   for each row execute function restore_jadwal_on_cancel();
 
--- ── chat: sessions are client-generated ids, so only messages are stored ─────
+-- ── chat: sessions ───────────────────────────────────────────────────────────
+
+create table if not exists sessions (
+  session_id text not null primary key,
+  user_id    uuid not null references users(user_id) on delete cascade,
+  title      text,                          -- first user message, truncated
+  started_at timestamptz default now(),
+  ended_at   timestamptz,
+  unique (session_id, user_id)              -- FK target for messages, see below
+);
+
+create index if not exists idx_sessions_user_id    on sessions(user_id);
+create index if not exists idx_sessions_started_at on sessions(started_at desc);
+
+alter table sessions enable row level security;
+
+create policy "mahasiswa_own_sessions" on sessions
+  for all using (app_user_id() = user_id);
 
 create table if not exists messages (
   message_id uuid primary key default gen_random_uuid(),
   session_id text        not null,
-  user_id    uuid        references users(user_id) on delete cascade,
+  user_id    uuid        not null,
   role       text        not null check (role in ('user', 'assistant')),
   content    text        not null,  -- Fernet ciphertext; never plaintext (core/security.py)
   route_used text,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  -- (session_id, user_id) rather than session_id alone: a message can never be attached to
+  -- another user's session, even by a client that sends a foreign session_id.
+  constraint messages_session_owner_fkey
+    foreign key (session_id, user_id) references sessions(session_id, user_id) on delete cascade
 );
 
 create index if not exists idx_messages_session_id on messages(session_id);

@@ -7,20 +7,25 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "sajiwa",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E4E8EE"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "id.ac.undip.sajiwa"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#E4E8EE"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "id.ac.undip.sajiwa",
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -28,7 +33,37 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#26356E",
+          "defaultChannel": "counseling"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#E4E8EE"
+        }
+      ],
+      "expo-status-bar",
+      "expo-secure-store",
+      [
+        "./plugins/withNetworkSecurity",
+        {
+          "domain": "10.0.2.2",
+          "caCert": "./certs/staging-ca.crt",
+          "pins": [
+            "i0wtQG2sbRzBWNG5833VypEDAtmif89OZBPt52NF+rs=",
+            "dyy8P4n2yR887iB91bm0rhUzneDX5etqryKt0Ynr7LI="
+          ],
+          "pinExpiration": "2027-11-11"
+        }
+      ]
     ]
   }
 }

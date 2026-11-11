@@ -2,22 +2,29 @@
 // shadcn-style Dialog/Modal primitive for React Native
 // Elegant floating dialog with backdrop and modular composition
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
   Text,
   StyleSheet,
   Pressable,
-  Animated,
   ViewStyle,
   TextStyle,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { Typography, Spacing, BorderRadius } from '@prototype/ui-shared';
 import { useTheme, Neu } from '@prototype/ui-shared';
+import { EXIT, FADE_MS, SPRING } from './motion';
 
 export interface DialogProps {
   open: boolean;
@@ -31,40 +38,40 @@ export const Dialog: React.FC<DialogProps> = ({
   children,
 }) => {
   const { colors } = useTheme();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.94)).current;
+  const reduce = useReducedMotion();
+  // Stays true through the close animation. Unmounting on `open=false` (the old early
+  // return) cut the dialog off mid-frame, so the fade-out never actually played.
+  const [mounted, setMounted] = useState(open);
+  const progress = useSharedValue(0);
 
   useEffect(() => {
     if (open) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          speed: 25,
-          bounciness: 4,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      setMounted(true);
+      // iOS alert motion: settles down from slightly larger on a critically damped spring.
+      progress.value = reduce ? withTiming(1, { duration: FADE_MS }) : withSpring(1, SPRING);
+    } else if (mounted) {
+      progress.value = withTiming(0, EXIT, (done) => {
+        if (done) runOnJS(setMounted)(false);
+      });
     }
+    // progress is a stable shared value; mounted is read only to skip a closed first render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (!open) return null;
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const cardStyle = useAnimatedStyle(() => ({
+    opacity: Math.min(1, progress.value * 1.4),
+    transform: [{ scale: reduce ? 1 : 1.08 - 0.08 * progress.value }],
+  }));
+
+  if (!mounted) return null;
 
   return (
     <Modal
       transparent
-      visible={open}
+      visible
       animationType="none"
+      statusBarTranslucent
       onRequestClose={() => onOpenChange(false)}
     >
       <KeyboardAvoidingView
@@ -79,10 +86,8 @@ export const Dialog: React.FC<DialogProps> = ({
           <Animated.View
             style={[
               styles.backdrop,
-              {
-                opacity: fadeAnim,
-                backgroundColor: colors.overlay,
-              },
+              { backgroundColor: colors.overlay },
+              backdropStyle,
             ]}
           />
         </Pressable>
@@ -95,9 +100,8 @@ export const Dialog: React.FC<DialogProps> = ({
             {
               backgroundColor: colors.background,
               boxShadow: Neu.raised,
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
             },
+            cardStyle,
           ]}
         >
           {children}

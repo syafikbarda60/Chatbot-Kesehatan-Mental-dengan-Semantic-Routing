@@ -1,7 +1,7 @@
 -- Self-check for the RLS + auth layer. Run as the app role:
 --
---   docker exec -i -e PGPASSWORD=sanctuary_app sanctuary-db \
---     psql -v ON_ERROR_STOP=1 -U sanctuary_app -d sanctuary < db/test_rls.sql
+--   docker exec -i -e PGPASSWORD=sajiwa_app sajiwa-db \
+--     psql -v ON_ERROR_STOP=1 -U sajiwa_app -d sajiwa < db/test_rls.sql
 --
 -- Everything runs in one transaction and rolls back, so it leaves no data.
 
@@ -9,15 +9,15 @@ begin;
 
 -- Three users, inserted exactly the way register/create_account do.
 select set_config('app.current_user_id', '11111111-1111-1111-1111-111111111111', true);
-insert into users (user_id, email, nama, role, password_hash) values
+insert into users (user_id, email, name, role, password_hash) values
   ('11111111-1111-1111-1111-111111111111', 'a@test.local', 'A', 'mahasiswa', 'x');
 
 select set_config('app.current_user_id', '22222222-2222-2222-2222-222222222222', true);
-insert into users (user_id, email, nama, role, password_hash) values
+insert into users (user_id, email, name, role, password_hash) values
   ('22222222-2222-2222-2222-222222222222', 'b@test.local', 'B', 'mahasiswa', 'x');
 
 select set_config('app.current_user_id', '33333333-3333-3333-3333-333333333333', true);
-insert into users (user_id, email, nama, role, password_hash) values
+insert into users (user_id, email, name, role, password_hash) values
   ('33333333-3333-3333-3333-333333333333', 'admin@test.local', 'Admin', 'admin', 'x');
 
 do $$
@@ -39,18 +39,24 @@ begin
   select count(*) into n from auth_lookup('a@test.local');
   assert n = 1, 'auth_lookup broken for anonymous caller';
 
-  select count(*) into n from hotline;
-  assert n = 3, format('hotline seed missing (%s rows)', n);
+  -- active hotlines are public on purpose (migration 004); unverified ones never are
+  select count(*) into n from hotlines where verification_status <> 'active';
+  assert n = 0, format('anonymous saw %s unverified hotlines', n);
+
+  -- migration 004 hides unverified contacts from the public; the admin still sees the seed
+  perform set_config('app.current_user_id', '33333333-3333-3333-3333-333333333333', true);
+  select count(*) into n from hotlines;
+  assert n >= 3, format('admin cannot see hotline seed (%s rows)', n);
 
   -- a student sees only their own row
   perform set_config('app.current_user_id', '11111111-1111-1111-1111-111111111111', true);
   select count(*) into n from users;
   assert n = 1, format('RLS leak: A saw %s users', n);
 
-  -- admin sees everyone
+  -- admin sees everyone (the three inserted rows, regardless of other local data)
   perform set_config('app.current_user_id', '33333333-3333-3333-3333-333333333333', true);
-  select count(*) into n from users;
-  assert n = 3, format('admin policy broken: saw %s users', n);
+  select count(*) into n from users where email like '%@test.local';
+  assert n = 3, format('admin policy broken: saw %s test users', n);
 
   -- journals are private to their owner
   perform set_config('app.current_user_id', '11111111-1111-1111-1111-111111111111', true);
@@ -65,6 +71,35 @@ begin
     insert into journals (user_id, content) values ('11111111-1111-1111-1111-111111111111', 'nope');
     raise exception 'RLS leak: anonymous inserted a journal';
   exception when insufficient_privilege then
+    null;  -- expected
+  end;
+
+  -- chat sessions and their messages are private to their owner
+  perform set_config('app.current_user_id', '11111111-1111-1111-1111-111111111111', true);
+  insert into sessions (session_id, user_id, title) values
+    ('s-a', '11111111-1111-1111-1111-111111111111', 'halo');
+  insert into messages (session_id, user_id, role, content) values
+    ('s-a', '11111111-1111-1111-1111-111111111111', 'user', 'ciphertext');
+  perform set_config('app.current_user_id', '22222222-2222-2222-2222-222222222222', true);
+  select count(*) into n from sessions;
+  assert n = 0, 'RLS leak: B read A''s sessions';
+  select count(*) into n from messages;
+  assert n = 0, 'RLS leak: B read A''s messages';
+
+  -- B cannot create a session owned by A
+  begin
+    insert into sessions (session_id, user_id) values ('s-b', '11111111-1111-1111-1111-111111111111');
+    raise exception 'RLS leak: B created a session for A';
+  exception when insufficient_privilege then
+    null;  -- expected
+  end;
+
+  -- nor attach a message to A's session, even with B's own user_id (composite FK)
+  begin
+    insert into messages (session_id, user_id, role, content) values
+      ('s-a', '22222222-2222-2222-2222-222222222222', 'user', 'x');
+    raise exception 'FK leak: B attached a message to A''s session';
+  exception when foreign_key_violation or insufficient_privilege then
     null;  -- expected
   end;
 

@@ -3,7 +3,7 @@
     cd apps/backend
     venv/bin/python scripts/seed_dev_users.py
 
-Connects as the superuser (`sanctuary`) because the first admin cannot be created
+Connects as the superuser (`sajiwa`) because the first admin cannot be created
 through the API: POST /accounts requires an existing admin.
 
 Emails use @example.com because the API's EmailStr rejects reserved TLDs such as
@@ -19,22 +19,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB = os.getenv("SEED_DB_URL", "postgresql://sanctuary:sanctuary@localhost:5432/sanctuary")
+DB = os.getenv("SEED_DB_URL", "postgresql://sajiwa:sajiwa@localhost:5432/sajiwa")
 
 USERS = [
-    ("admin@example.com", "admin1234", "Admin Sanctuary", "admin"),
-    ("konselor@example.com", "konselor1234", "Konselor Sanctuary", "konselor"),
-    ("mahasiswa@example.com", "mahasiswa1234", "Mahasiswa Sanctuary", "mahasiswa"),
+    ("admin@example.com", "admin1234", "Admin Sajiwa", "admin"),
+    ("konselor@example.com", "konselor1234", "Konselor Sajiwa", "konselor"),
+    ("mahasiswa@example.com", "mahasiswa1234", "Mahasiswa Sajiwa", "mahasiswa"),
 ]
 
 with psycopg.connect(DB, autocommit=True) as conn:
-    for email, password, nama, role in USERS:
+    for email, password, name, role in USERS:
         conn.execute(
-            "insert into users (user_id, email, nama, role, password_hash) "
+            "insert into users (user_id, email, name, role, password_hash) "
             "values (%s, %s, %s, %s, %s) "
             "on conflict (email) do update set "
-            "nama = excluded.nama, role = excluded.role, password_hash = excluded.password_hash",
-            (str(uuid.uuid4()), email, nama, role, bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()),
+            "name = excluded.name, role = excluded.role, password_hash = excluded.password_hash",
+            (str(uuid.uuid4()), email, name, role, bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()),
         )
         print(f"{role:10}  {email:26}  {password}")
 

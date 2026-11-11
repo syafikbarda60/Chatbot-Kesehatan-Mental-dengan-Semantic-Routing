@@ -1,11 +1,12 @@
 // components/chat/AlertModal.tsx
 // Crisis support sheet. Calling a hotline is the primary action; every contact is one tap away.
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Animated, Pressable, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, IconButton } from '../ui';
 import { Neu, useTheme } from '@prototype/ui-shared';
 import { toDialable, extensionOf } from '@prototype/utils';
+import { EXIT_EASING_RN, EXIT_MS, FADE_MS, SPRING } from '../ui/motion';
 
 interface Props {
   visible: boolean;
@@ -35,16 +36,27 @@ export const AlertModal: React.FC<Props> = ({ visible, onDismiss, onConfirmRepor
   const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.94)).current;
+  // The Modal stays up until the fade-out finishes. Bound straight to `visible`, it vanished
+  // the moment visible went false, so the closing animation below never reached the screen.
+  const [shown, setShown] = useState(visible);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(opacity, { toValue: visible ? 1 : 0, duration: 200, useNativeDriver: true }),
-      Animated.spring(scale, { toValue: visible ? 1 : 0.94, damping: 18, stiffness: 220, useNativeDriver: true }),
-    ]).start();
+    if (visible) setShown(true);
+    Animated.spring(scale, { toValue: visible ? 1 : 0.96, ...SPRING, useNativeDriver: true }).start();
+    // Unmount on the fade, not on the spring: the spring keeps settling for a few hundred ms
+    // after the card is already invisible, and an invisible Modal still swallows every touch.
+    Animated.timing(opacity, {
+      toValue: visible ? 1 : 0,
+      duration: visible ? FADE_MS : EXIT_MS,
+      easing: visible ? undefined : EXIT_EASING_RN,
+      useNativeDriver: true,
+    }).start(
+      ({ finished }) => { if (finished && !visible) setShown(false); },
+    );
   }, [visible]);
 
   return (
-    <Modal transparent visible={visible} onRequestClose={onDismiss} statusBarTranslucent animationType="none">
+    <Modal transparent visible={shown} onRequestClose={onDismiss} statusBarTranslucent animationType="none">
       <Animated.View style={[s.backdrop, { opacity, backgroundColor: colors.overlay }]}>
         <Animated.View
           accessibilityViewIsModal

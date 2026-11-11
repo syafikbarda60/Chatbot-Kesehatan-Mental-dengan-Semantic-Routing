@@ -2,7 +2,6 @@ import os
 import sys
 import time
 
-# Tambahkan path backend ke sys.path agar bisa import services
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
@@ -27,13 +26,10 @@ def test_rag_performance():
     for i, query in enumerate(queries, 1):
         print(f"\n[{i}] Query: '{query}'")
         
-        # Mulai timer
         start_time = time.time()
         
-        # Ambil dokumen
         try:
             docs = retrieve_docs(query, k=3)
-            # Hitung waktu
             latency = time.time() - start_time
             total_time += latency
             
@@ -43,7 +39,6 @@ def test_rag_performance():
                 print("   [!] Tidak ada dokumen yang ditemukan (Similarity < 0.3)")
             else:
                 for j, doc in enumerate(docs, 1):
-                    # Biasanya RPC Supabase match_documents mereturn kolom 'similarity'
                     similarity = doc.get("similarity", "N/A")
                     if isinstance(similarity, float):
                         similarity = f"{similarity:.4f}"

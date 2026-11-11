@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { arrive } from '../ui/motion';
 import { NeuView } from '../ui/NeuView';
 import { useTheme } from '@prototype/ui-shared';
 import type { Message } from '@prototype/utils';
@@ -11,12 +12,17 @@ interface Props {
   endOfGroup?: boolean;
 }
 
-const FADE = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
+// Settles up into the thread on a damped spring, the way a message lands in iOS Messages.
+// Web takes a plain fade: Reanimated's web layout path mispositions entering elements.
+const FADE = arrive(FadeInDown);
 
 export const fmtTime = (d: Date) =>
   d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-export const ChatBubble: React.FC<Props> = ({ message, endOfGroup = true }) => {
+// Memoised: a streaming reply replaces its own message object on every token, and the list
+// re-renders 400+ times per answer. Without this, every settled bubble pays for the shadow and
+// the entering animation again each time — "VirtualizedList: large list that is slow to update".
+export const ChatBubble = React.memo(function ChatBubble({ message, endOfGroup = true }: Props) {
   const isUser = message.sender === 'user';
   const { colors } = useTheme();
 
@@ -50,7 +56,7 @@ export const ChatBubble: React.FC<Props> = ({ message, endOfGroup = true }) => {
       </View>
     </Animated.View>
   );
-};
+});
 
 const s = StyleSheet.create({
   rowUser: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16 },

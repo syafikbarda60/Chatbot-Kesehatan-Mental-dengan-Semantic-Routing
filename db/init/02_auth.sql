@@ -1,16 +1,17 @@
 -- Auth layer for the pure-PostgreSQL backend. Runs after 01_schema.sql.
 
 -- ── Non-superuser app role so RLS actually applies ───────────────────────────
--- `sanctuary` (the compose superuser) bypasses RLS; the backend connects as
--- sanctuary_app. See db/README.md for the DATABASE_URL.
-create role sanctuary_app login password 'sanctuary_app' nosuperuser;
-grant usage on schema public to sanctuary_app;
-grant select, insert, update, delete on all tables in schema public to sanctuary_app;
-grant usage, select on all sequences in schema public to sanctuary_app;
+-- `sajiwa` (the compose superuser) bypasses RLS; the backend connects as
+-- sajiwa_app. See db/README.md for the DATABASE_URL.
+create role sajiwa_app login password 'sajiwa_app' nosuperuser;
+
+grant usage on schema public to sajiwa_app;
+grant select, insert, update, delete on all tables in schema public to sajiwa_app;
+grant usage, select on all sequences in schema public to sajiwa_app;
 alter default privileges in schema public
-  grant select, insert, update, delete on tables to sanctuary_app;
+  grant select, insert, update, delete on tables to sajiwa_app;
 alter default privileges in schema public
-  grant usage, select on sequences to sanctuary_app;
+  grant usage, select on sequences to sajiwa_app;
 
 -- ── Password storage ─────────────────────────────────────────────────────────
 alter table users add column if not exists password_hash text;
@@ -37,7 +38,7 @@ alter table password_resets enable row level security;
 create policy "password_resets_all" on password_resets
   for all using (true) with check (true);
 
-grant select, insert, update, delete on password_resets to sanctuary_app;
+grant select, insert, update, delete on password_resets to sajiwa_app;
 
 -- ── Login lookup (anonymous caller, so SECURITY DEFINER bypasses RLS) ────────
 create or replace function auth_lookup(p_email varchar)
@@ -69,5 +70,5 @@ as $$
   update users set password_hash = p_password_hash where user_id = p_user_id;
 $$;
 
-grant execute on function auth_lookup(varchar) to sanctuary_app;
-grant execute on function set_password(uuid, text) to sanctuary_app;
+grant execute on function auth_lookup(varchar) to sajiwa_app;
+grant execute on function set_password(uuid, text) to sajiwa_app;

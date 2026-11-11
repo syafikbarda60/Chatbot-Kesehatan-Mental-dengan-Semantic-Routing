@@ -13,15 +13,18 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { NeuView } from '../components/ui';
+import { NeuView, Fab, FAB_SIZE, haptic } from '../components/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useChat } from '../hooks/useChat';
-import { ChatBubble, TypingIndicator, QuickReply, AlertModal, Companion } from '../components/chat';
+import { ChatBubble, TypingIndicator, QuickReply, AlertModal, Companion, ChatHistoryDrawer } from '../components/chat';
 import { DayDivider, OpeningPrompts, SupportNote } from '../components/chat/ConversationExtras';
 import { EXPRESSION_STATUS, isHeavy, type Expression } from '@prototype/utils';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
+
+// Gap between the history button and the composer below it.
+const HISTORY_FAB_GAP = 12;
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -44,20 +47,32 @@ export default function ChatScreen() {
     setShowAlert,
     setAlertTriggered,
     expression,
+    sessionId,
+    startNewChat,
+    openSession,
   } = useChat(initialSessionId);
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  // An answer tapped on the daily check-in notification waits in the composer, unsent
+  const draft = params.draft as string | undefined;
+  useEffect(() => { if (draft) setInputText(draft); }, [draft, setInputText]);
 
   useEffect(() => {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
   }, [messages, isTyping]);
 
-  const canSend = inputText.trim().length > 0;
+  const canSend = inputText.trim().length > 0 && sessionId !== null;
   const hasUserMessage = messages.some((m) => m.sender === 'user');
+  const canStartNew = hasUserMessage && !isLoadingHistory;
 
   // Support note lives inside the thread and only appears when the conversation turns heavy.
   // 0 = fine, 1 = heavy, 2 = very heavy. Dismissing hides it until the tier rises again.
   const tier = stressLevel >= 7 ? 2 : stressLevel >= 4 ? 1 : 0;
   const [dismissedTier, setDismissedTier] = useState(0);
   const showNote = tier > dismissedTier && hasUserMessage && !isTyping;
+  // A dismissal belongs to the conversation it was made in, not the next one opened.
+  useEffect(() => setDismissedTier(0), [sessionId]);
 
   const firstDate = messages[0]?.timestamp;
   const dayLabel = !firstDate || new Date(firstDate).toDateString() === new Date().toDateString()
@@ -82,39 +97,62 @@ export default function ChatScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
-          accessibilityRole="button"
-          accessibilityLabel="Kembali"
-          onPress={() => {
-            if (router.canGoBack()) router.back();
-            else router.replace('/home');
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={20} color={colors.onSurface} />
-        </TouchableOpacity>
+        {/* Both side groups are two buttons wide, so "Sajiwa" stays centered */}
+        <View style={s.sideGroup}>
+          <TouchableOpacity
+            style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
+            accessibilityRole="button"
+            accessibilityLabel="Kembali"
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace('/home');
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="arrow-back" size={20} color={colors.onSurface} />
+          </TouchableOpacity>
+        </View>
 
         <View style={s.navCenter} accessibilityLiveRegion="polite">
           <Text style={[s.navBrand, { color: colors.onSurface }]}>Sajiwa</Text>
           <Text style={[s.navStatus, { color: colors.onSurfaceVariant }]}>{EXPRESSION_STATUS[liveExpression]}</Text>
         </View>
 
-        {/* Always-visible path to human help */}
-        <TouchableOpacity
-          style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
-          onPress={() => router.push('/hotline')}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Hotline darurat"
-        >
-          <Ionicons name="call-outline" size={20} color={colors.stressHigh} />
-        </TouchableOpacity>
+        <View style={[s.sideGroup, s.sideGroupEnd]}>
+          {/* New conversation. Off while this one is still untouched: a new one would be
+              the same greeting with a different id. */}
+          <TouchableOpacity
+            style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: canStartNew ? Neu.raisedSm : Neu.inset }]}
+            onPress={() => { haptic.select(); startNewChat(); }}
+            disabled={!canStartNew}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Percakapan baru"
+            accessibilityState={{ disabled: !canStartNew }}
+          >
+            <Ionicons name="create-outline" size={20} color={canStartNew ? colors.primary : colors.outline} />
+          </TouchableOpacity>
+
+          {/* Always-visible path to human help */}
+          <TouchableOpacity
+            style={[s.iconBtn, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}
+            onPress={() => router.push('/hotline')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Hotline darurat"
+          >
+            <Ionicons name="call-outline" size={20} color={colors.stressHigh} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Message List ── */}
+      {/* Its own box so the history button can anchor to the bottom of the thread — right
+          above the composer, whatever height the composer or keyboard gives it — instead of
+          the bottom of the screen, where the send button already is. */}
+      <View style={s.thread}>
       {isLoadingHistory ? (
-        <LoadingState color={colors.onSurfaceVariant} />
+        <LoadingState />
       ) : (
         <FlatList
           ref={listRef}
@@ -130,8 +168,7 @@ export default function ChatScreen() {
           }}
           contentContainerStyle={s.msgList}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={messages.length ? <DayDivider label={dayLabel} /> : null}
-          ListEmptyComponent={<EmptyState />}
+          ListHeaderComponent={messages.length ? <DayDivider label={dayLabel} /> : undefined}
           ListFooterComponent={
             isTyping ? (
               <TypingIndicator />
@@ -163,6 +200,14 @@ export default function ChatScreen() {
           }
         />
       )}
+        <Fab
+          icon="chatbubbles"
+          onPress={() => setHistoryOpen(true)}
+          accessibilityLabel="Riwayat percakapan"
+          accessibilityHint="Membuka daftar percakapanmu sebelumnya"
+          style={s.historyFab}
+        />
+      </View>
 
       {/* ── Bottom: Quick Replies + Input Bar (fused, no gap) ── */}
       <View
@@ -237,46 +282,34 @@ export default function ChatScreen() {
         onDismiss={closeAlert}
         onConfirmReport={confirmReport}
       />
+
+      <ChatHistoryDrawer
+        visible={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        currentSessionId={sessionId}
+        onSelect={openSession}
+        onNewChat={startNewChat}
+        canStartNew={canStartNew}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-/* ── Loading skeleton ── */
-const LoadingState: React.FC<{ color: string }> = ({ color }) => (
-  <View style={s.centered}>
-    <Text style={[s.loadingTxt, { color }]}>Memuat riwayat...</Text>
+/* ── Loading: Sajiwa itself instead of a "Memuat riwayat..." line, in the same centered spot.
+   `animated` gives it the idle breath and tap-for-a-face, so the wait feels alive. Same
+   'menyapa' face and size it opens with once loaded, so the screen reads as one continuous
+   arrival. The words move to the accessibility label: a picture alone would tell a screen
+   reader user nothing is happening. ── */
+const LoadingState: React.FC = () => (
+  <View
+    style={s.centered}
+    accessible
+    accessibilityRole="progressbar"
+    accessibilityLabel="Memuat riwayat percakapan"
+  >
+    <Companion expression="menyapa" size={168} animated />
   </View>
 );
-
-/* ── Empty state: editorial, left-aligned, generous whitespace ── */
-const EmptyState: React.FC = () => {
-  const { colors } = useTheme();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(16)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, delay: 100, useNativeDriver: true }),
-    ]).start();
-  }, []);
-
-  return (
-    <Animated.View
-      style={[
-        s.empty,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
-      ]}
-    >
-      <Text style={[s.emptyTitle, { color: colors.onSurface }]}>
-        Ruang Refleksimu
-      </Text>
-      <Text style={[s.emptySub, { color: colors.onSurfaceVariant }]}>
-        Ceritakan apapun. Sajiwa mendengarkan dengan penuh empati, tanpa penghakiman.
-      </Text>
-    </Animated.View>
-  );
-};
 
 const s = StyleSheet.create({
   root: { flex: 1 },
@@ -298,13 +331,21 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  // Two 44pt buttons and the gap between them, on both sides of the title.
+  sideGroup: { flexDirection: 'row', gap: Spacing.sm, width: 44 * 2 + Spacing.sm },
+  sideGroupEnd: { justifyContent: 'flex-end' },
   navBrand: { fontSize: 17, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.3 },
   navStatus: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
   /* Message list */
+  thread: { flex: 1 },
   msgList: {
-    paddingVertical: Spacing.sm,
+    paddingTop: Spacing.sm,
+    // Room under the newest message for the history button, so the latest turn can always
+    // scroll clear of it rather than sit permanently behind it.
+    paddingBottom: HISTORY_FAB_GAP + FAB_SIZE + Spacing.md,
     flexGrow: 1,
   },
+  historyFab: { right: Spacing.base, bottom: HISTORY_FAB_GAP },
 
   /* Bottom container: chips + input, no gap between them */
   bottomContainer: {
@@ -348,28 +389,4 @@ const s = StyleSheet.create({
 
   /* Loading */
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingTxt: {
-    fontSize: 14,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    letterSpacing: 0.5,
-  },
-
-  /* Empty state — left-aligned editorial */
-  empty: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.lg,
-    gap: Spacing.md,
-  },
-  emptyTitle: {
-    fontSize: 28, fontFamily: 'PlusJakartaSans_800ExtraBold',
-    letterSpacing: -0.8,
-    lineHeight: 34,
-  },
-  emptySub: {
-    fontSize: 15,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    lineHeight: 24,
-    maxWidth: '88%',
-  },
 });

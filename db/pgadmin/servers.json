@@ -1,12 +1,12 @@
 {
   "Servers": {
     "1": {
-      "Name": "Sanctuary local (superuser, bypasses RLS)",
+      "Name": "Sajiwa local (superuser, bypasses RLS)",
       "Group": "Servers",
       "Host": "db",
       "Port": 5432,
-      "MaintenanceDB": "sanctuary",
-      "Username": "sanctuary",
+      "MaintenanceDB": "sajiwa",
+      "Username": "sajiwa",
       "SSLMode": "prefer",
       "PassFile": "/pgpass"
     }

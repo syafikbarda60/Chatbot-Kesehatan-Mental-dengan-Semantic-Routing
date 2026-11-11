@@ -13,9 +13,11 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
-import { NeuView, Input, Button, useToast } from '../components/ui';
-import { Companion } from '../components/chat';
+import { Input, Button, useToast } from '../components/ui';
+import { AuthStage } from '../components/AuthStage';
 import { useAuth } from '@prototype/ui-shared';
+
+const SLAB = '-12px -12px 26px rgba(255,255,255,0.95), 12px 12px 28px rgba(122,134,168,0.5)';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -50,7 +52,7 @@ export default function LoginScreen() {
         return;
       }
 
-      toast.show(`Selamat datang kembali${data.user.nama ? ', ' + data.user.nama.split(' ')[0] : ''}!`);
+      toast.show(`Selamat datang kembali${data.user.name ? ', ' + data.user.name.split(' ')[0] : ''}!`);
       router.replace('/home');
     } catch {
       // error sudah disimpan di hook
@@ -67,24 +69,21 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Hero: the companion greets you */}
-        <NeuView radius={30} style={s.hero}>
-          <View style={{ flex: 1, gap: 8 }}>
-            <View style={s.brandRow}>
-              <Image source={require('../assets/image.png')} style={s.logo} resizeMode="contain" />
-              <Text style={[s.brandName, { color: colors.primary }]}>Sajiwa</Text>
-            </View>
-            <Text style={[s.heroTitle, { color: colors.onSurface }]} accessibilityRole="header">
-              Hai, senang kamu kembali.
-            </Text>
-            <Text style={[s.heroSub, { color: colors.onSurfaceVariant }]}>Ruang tenang untuk pikiranmu.</Text>
-          </View>
-          <Companion expression="menyapa" size={132} />
-        </NeuView>
+        {/* Hero: the character is the brand moment */}
+        <AuthStage expression="menyapa" say="Hai! Senang kamu kembali." />
 
-        {/* Form */}
-        <View style={s.card}>
-          <Text style={[s.cardTitle, { color: colors.onSurface }]}>Masuk ke akunmu</Text>
+        <View style={s.heading}>
+          <View style={s.brandRow}>
+            <Image source={require('../assets/image.png')} style={s.logo} resizeMode="contain" />
+            <Text style={[s.brandName, { color: colors.primary }]}>Sajiwa</Text>
+          </View>
+          <Text style={[s.heroTitle, { color: colors.onSurface }]} accessibilityRole="header">
+            Masuk ke ruang tenangmu
+          </Text>
+        </View>
+
+        {/* Form on a raised slab */}
+        <View style={[s.card, { backgroundColor: colors.background, boxShadow: SLAB }]}>
 
           <Input
             label="Email"
@@ -104,6 +103,8 @@ export default function LoginScreen() {
             label="Kata sandi"
             placeholder="Minimal 8 karakter"
             secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
             autoComplete="password"
             textContentType="password"
             returnKeyType="go"
@@ -144,12 +145,10 @@ export default function LoginScreen() {
           />
         </View>
 
-        {/* Footer */}
+        {/* Sign-up: a real raised button, not a tiny link */}
         <View style={s.footer}>
-          <Text style={[s.footerTxt, { color: colors.onSurfaceVariant }]}>Belum punya akun? </Text>
-          <TouchableOpacity onPress={() => router.push('/register')} hitSlop={10} accessibilityRole="link">
-            <Text style={[s.footerLink, { color: colors.primary }]}>Daftar sekarang</Text>
-          </TouchableOpacity>
+          <Text style={[s.footerTxt, { color: colors.onSurfaceVariant }]}>Belum punya akun?</Text>
+          <Button label="Buat akun baru" variant="secondary" onPress={() => router.push('/register')} style={{ alignSelf: 'stretch' }} />
         </View>
 
         <View style={s.securityRow}>
@@ -166,25 +165,19 @@ const s = StyleSheet.create({
   scroll: { flexGrow: 1, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
 
   // Hero
-  hero: {
-    width: '100%', maxWidth: 440, flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingLeft: 20, paddingRight: 8, paddingVertical: 16, marginBottom: 28,
-  },
+  heading: { alignItems: 'center', gap: 6, marginTop: 18, marginBottom: 24 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logo: { width: 26, height: 26 },
-  brandName: { fontSize: 15, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.2 },
-  heroTitle: { fontSize: 24, lineHeight: 30, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.6 },
-  heroSub: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 20 },
+  logo: { width: 36, height: 36 },
+  brandName: { fontSize: 15, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: 0.2 },
+  heroTitle: { fontSize: 27, lineHeight: 34, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.8, textAlign: 'center' },
 
   // Form
-  card: { width: '100%', maxWidth: 440, gap: 8, marginBottom: 28 },
-  cardTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.3, marginBottom: 8 },
+  card: { width: '100%', maxWidth: 440, gap: 8, marginBottom: 28, padding: 20, paddingTop: 22, borderRadius: 32 },
   forgotBtn: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center' },
   forgotText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
 
-  footer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  footer: { width: '100%', maxWidth: 440, alignItems: 'center', gap: 10, marginBottom: 20 },
   footerTxt: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
-  footerLink: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 
   securityRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   securityNote: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },

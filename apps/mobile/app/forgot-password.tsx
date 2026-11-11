@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
 import { apiRequestPasswordReset, apiConfirmPasswordReset } from '@prototype/api-client';
-import { NeuView, Input, Button, IconButton, useToast } from '../components/ui';
+import { NeuView, Input, Button, IconButton, FadeIn, useToast } from '../components/ui';
 
 export default function ForgotPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -78,6 +78,7 @@ export default function ForgotPasswordScreen() {
           />
         </View>
 
+        <FadeIn>
         <View style={s.content}>
           <Text style={[s.step, { color: colors.onSurfaceVariant }]}>Langkah {isRequest ? 1 : 2} dari 2</Text>
           <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">
@@ -149,6 +150,7 @@ export default function ForgotPasswordScreen() {
             )}
           </View>
         </View>
+        </FadeIn>
       </ScrollView>
     </KeyboardAvoidingView>
   );

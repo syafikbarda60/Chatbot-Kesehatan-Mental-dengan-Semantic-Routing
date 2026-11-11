@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
-import { BottomNav, FadeIn, NeuView, Button, ScreenHeader, IconButton, useToast } from '../components/ui';
+import { BottomNav, BOTTOM_CLEARANCE, FadeIn, NeuView, Button, ScreenHeader, IconButton, useToast } from '../components/ui';
 import { Companion } from '../components/chat';
 import { apiGetJournals } from '@prototype/api-client';
 import { MOODS, Mood, moodOf, todayPrompt } from '../constants/moods';
@@ -254,7 +254,7 @@ export default function JournalHistoryScreen() {
           ref={listRef}
           data={rows}
           keyExtractor={(r) => r.key}
-          contentContainerStyle={[s.listContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+          contentContainerStyle={[s.listContent, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + BOTTOM_CLEARANCE }]}
           renderItem={renderRow}
           ListHeaderComponent={header}
           ListEmptyComponent={
@@ -271,7 +271,7 @@ export default function JournalHistoryScreen() {
           ListFooterComponent={
             pageCount > 1 ? (
               <Pagination page={current} count={pageCount} total={filtered.length} onChange={goToPage} />
-            ) : null
+            ) : undefined
           }
         />
       )}

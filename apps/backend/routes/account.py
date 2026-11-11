@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Literal
 from datetime import datetime, timezone
@@ -10,6 +10,7 @@ from psycopg.errors import UniqueViolation
 
 from auth import require_role, get_current_user, create_token, EXPIRES_IN
 from core.db import db, query
+from core.mailer import send_reset_otp
 
 load_dotenv()
 
@@ -32,13 +33,13 @@ class LoginRequest(BaseModel):
 class CreateAccountRequest(BaseModel):
     email: EmailStr
     password: str
-    nama: str
+    name: str
     role: Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"] = "mahasiswa"
     nim: Optional[str] = None
 
 
 class UpdateAccountRequest(BaseModel):
-    nama: Optional[str] = None
+    name: Optional[str] = None
     role: Optional[Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"]] = None
     nim: Optional[str] = None
 
@@ -57,9 +58,9 @@ def register(request: CreateAccountRequest):
     try:
         with db(user_id) as conn:
             conn.execute(
-                "insert into users (user_id, email, nama, nim, role, password_hash) "
+                "insert into users (user_id, email, name, nim, role, password_hash) "
                 "values (%s, %s, %s, %s, 'mahasiswa', %s)",
-                (user_id, request.email, request.nama, request.nim, _hash(request.password)),
+                (user_id, request.email, request.name, request.nim, _hash(request.password)),
             )
     except UniqueViolation:
         raise HTTPException(status_code=400, detail="Email sudah terdaftar")
@@ -79,7 +80,7 @@ def register(request: CreateAccountRequest):
 @router.post("/auth/login")
 def login(request: LoginRequest):
     rows = query(
-        "select user_id, email, nama, nim, role, password_hash "
+        "select user_id, email, name, nim, role, password_hash "
         "from auth_lookup(%s)",
         (request.email,),
     )
@@ -102,15 +103,33 @@ def login(request: LoginRequest):
         "user": {
             "user_id": user_id,
             "email": user["email"],
-            "nama": user["nama"],
+            "name": user["name"],
             "nim": user["nim"],
             "role": user["role"],
         },
     }
 
 
+@router.post("/auth/logout")
+def logout(user=Depends(get_current_user)):
+    # MASVS-AUTH-1: deleting the token on the phone alone left it valid for its whole lifetime;
+    # revoke it server-side until it would have expired anyway.
+    if user.jti:
+        query(
+            "insert into revoked_tokens (jti, user_id, expires_at) values (%s, %s, to_timestamp(%s)) "
+            "on conflict (jti) do nothing",
+            (user.jti, user.id, user.exp),
+            user_id=user.id,
+        )
+    return {"message": "Berhasil keluar"}
+
+
+# Shown in the app as is. Each new request replaces the last code, which is the usual cause
+RESET_REJECTED = "Kode OTP salah, kedaluwarsa, atau sudah diganti kode baru. Pakai kode dari email terbaru."
+
+
 @router.post("/auth/reset-password/request")
-def request_password_reset(request: ResetPasswordRequest):
+def request_password_reset(request: ResetPasswordRequest, background: BackgroundTasks):
     rows = query("select user_id from auth_lookup(%s)", (request.email,))
     if rows:
         otp = f"{secrets.randbelow(1000000):06d}"
@@ -121,8 +140,8 @@ def request_password_reset(request: ResetPasswordRequest):
             "expires_at = excluded.expires_at, used = false",
             (request.email, _hash(otp)),
         )
-        # ponytail: no SMTP wired; OTP goes to the server log. Add email delivery before prod.
-        print(f"[reset-password] OTP untuk {request.email}: {otp}")
+        # Sent after the response, so a registered address answers as fast as an unknown one
+        background.add_task(send_reset_otp, request.email, otp)
 
     return {"message": "Jika email terdaftar, OTP telah dikirimkan."}
 
@@ -140,11 +159,11 @@ def confirm_password_reset(request: ConfirmPasswordResetRequest):
         or rec["expires_at"] < datetime.now(timezone.utc)
         or not _verify(request.otp, rec["otp_hash"])
     ):
-        raise HTTPException(status_code=400, detail="OTP salah atau kedaluwarsa")
+        raise HTTPException(status_code=400, detail=RESET_REJECTED)
 
     users = query("select user_id from auth_lookup(%s)", (request.email,))
     if not users:
-        raise HTTPException(status_code=400, detail="OTP salah atau kedaluwarsa")
+        raise HTTPException(status_code=400, detail=RESET_REJECTED)
 
     user_id = str(users[0]["user_id"])
     query("select set_password(%s, %s)", (user_id, _hash(request.new_password)))
@@ -165,12 +184,34 @@ def get_my_profile(user=Depends(get_current_user)):
     return rows[0]
 
 
+@router.get("/auth/consent")
+def get_privacy_consent(user=Depends(get_current_user)):
+    """When this account accepted the privacy walkthrough, or null: the app shows it once per account."""
+    rows = query("select accepted_at from privacy_consents where user_id = %s", (user.id,), user_id=user.id)
+    return {"accepted_at": rows[0]["accepted_at"] if rows else None}
+
+
+@router.post("/auth/consent")
+def accept_privacy_consent(user=Depends(get_current_user)):
+    # The first acceptance is the one on record; accepting again keeps it.
+    with db(user.id) as conn:
+        conn.execute(
+            "insert into privacy_consents(user_id) values (%s) on conflict (user_id) do nothing",
+            (user.id,),
+        )
+        row = conn.execute("select accepted_at from privacy_consents where user_id = %s", (user.id,)).fetchone()
+    return {"accepted_at": row["accepted_at"]}
+
+
 @router.get("/accounts")
 def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
     try:
         rows = query(
-            "select user_id, nama, email, nim, role, created_at from users "
-            "order by created_at desc",
+            "select u.user_id,u.name,u.email,u.nim,u.role,u.created_at,sap.faculty_id,f.name as faculty_name,"
+            "sap.academic_unit_id,au.name as academic_unit_name,au.unit_type from users u " +
+            "left join student_academic_profiles sap on sap.user_id=u.user_id " +
+            "left join faculties f on f.faculty_id=sap.faculty_id " +
+            "left join academic_units au on au.academic_unit_id=sap.academic_unit_id order by u.created_at desc",
             user_id=admin.id,
         )
         return {"users": rows, "total": len(rows)}
@@ -181,7 +222,7 @@ def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
 @router.get("/accounts/konselor")
 def get_konselor_list(user=Depends(get_current_user)):
     """Counselor directory for the booking screen (public fields only, via list_konselor())."""
-    rows = query("select user_id, nama, role from list_konselor()", user_id=user.id)
+    rows = query("select user_id, name, role from list_konselor()", user_id=user.id)
     return {"users": rows, "total": len(rows)}
 
 
@@ -191,11 +232,11 @@ def create_account(request: CreateAccountRequest, admin=Depends(require_role("ad
     try:
         with db(admin.id) as conn:
             conn.execute(
-                "insert into users (user_id, nama, email, nim, role, password_hash) "
+                "insert into users (user_id, name, email, nim, role, password_hash) "
                 "values (%s, %s, %s, %s, %s, %s)",
                 (
                     user_id,
-                    request.nama,
+                    request.name,
                     request.email,
                     request.nim,
                     request.role,
@@ -208,7 +249,7 @@ def create_account(request: CreateAccountRequest, admin=Depends(require_role("ad
     return {
         "user_id": user_id,
         "email": request.email,
-        "nama": request.nama,
+        "name": request.name,
         "role": request.role,
         "message": "Akun berhasil dibuat",
     }
@@ -221,13 +262,13 @@ def update_account(
     admin=Depends(require_role("admin", "pemangku_jabatan")),
 ):
     try:
-        if request.nama is None and request.role is None and request.nim is None:
+        if request.name is None and request.role is None and request.nim is None:
             return {"message": "Tidak ada data yang diubah"}
 
         rows = query(
-            "update users set nama = coalesce(%s, nama), role = coalesce(%s, role), "
+            "update users set name = coalesce(%s, name), role = coalesce(%s, role), "
             "nim = coalesce(%s, nim) where user_id = %s returning user_id",
-            (request.nama, request.role, request.nim, user_id),
+            (request.name, request.role, request.nim, user_id),
             user_id=admin.id,
         )
 

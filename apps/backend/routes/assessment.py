@@ -66,7 +66,6 @@ def submit_self_assessment(
         _log_high_risk(
             user_id=str(user.id),
             assessment_id=assessment_id,
-            score=score,
             session_id=request.session_id,
         )
 
@@ -84,7 +83,6 @@ def send_high_risk_notification(request: NotifyRiskRequest):
     _log_high_risk(
         user_id=request.user_id,
         assessment_id=request.assessment_id,
-        score=request.score,
         session_id=request.session_id,
     )
     return {"status": "notified", "user_id": request.user_id}
@@ -103,12 +101,19 @@ def get_assessment_history(user=Depends(get_current_user)):
 
 def _log_high_risk(
     user_id: str,
-    score: int,
     session_id: Optional[str] = None,
     assessment_id: Optional[str] = None,
 ):
+    """Record the signal, not the content.
+
+    `triggered_input` stays NULL: the score and severity already live in `assessments`, and
+    storing them here in plaintext would leak clinical detail past the admin content rules
+    (docs/project-conventions.md). `source` + `assessment_id` are what `admin/operations/attention`
+    classifies on.
+    """
     query(
-        "insert into guardrail_logs (user_id, session_id, triggered_input) values (%s, %s, %s)",
-        (user_id, session_id, f"[ASSESSMENT] score={score}, assessment_id={assessment_id}"),
+        "insert into guardrail_logs (user_id, session_id, source, assessment_id) "
+        "values (%s, %s, 'assessment', %s)",
+        (user_id, session_id, assessment_id),
         user_id=user_id,
     )

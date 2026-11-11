@@ -1,28 +1,67 @@
 services:
   db:
     image: pgvector/pgvector:pg17
-    container_name: sanctuary-db
+    container_name: sajiwa-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: sanctuary
-      POSTGRES_PASSWORD: sanctuary
-      POSTGRES_DB: sanctuary
+      POSTGRES_USER: sajiwa
+      POSTGRES_PASSWORD: sajiwa
+      POSTGRES_DB: sajiwa
     ports:
-      # Host port overridable via root .env (SANCTUARY_DB_PORT) when 5432 is taken, e.g. by a native PostgreSQL
-      - "${SANCTUARY_DB_PORT:-5432}:5432"
+      # Host port overridable via root .env (SAJIWA_DB_PORT) when 5432 is taken, e.g. by a native PostgreSQL
+      - "${SAJIWA_DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       # *.sql here runs once, alphabetically, on first boot of an empty volume
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sanctuary -d sanctuary"]
+      test: ["CMD-SHELL", "pg_isready -U sajiwa -d sajiwa"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Runs db/migrations/*.sql in order after the db is healthy. Fresh volumes get them after
+  # db/init; existing volumes catch up here. schema_migrations is read, not just written, so
+  # a file that already ran is skipped instead of relying on every statement inside it being
+  # re-runnable — reseeding guards such as "refusing to overwrite existing content" are
+  # meant to fire once, and re-running them turned a finished migration into an error.
+  migrate:
+    image: pgvector/pgvector:pg17
+    container_name: sajiwa-migrate
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: sajiwa
+    volumes:
+      - ./db/migrations:/migrations:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        PSQL="psql -h db -U sajiwa -d sajiwa -v ON_ERROR_STOP=1"
+        for f in /migrations/*.sql; do
+          v=$$(basename "$$f" .sql)
+          # Each migration records its own filename stem, so that is the key to look up.
+          # stderr is dropped because on a fresh database schema_migrations does not exist
+          # yet, which just means "not applied"; a connection problem lands here too and
+          # then fails loudly on the apply below rather than being skipped silently.
+          if $$PSQL -tAc "select 1 from schema_migrations where version='$$v'" 2>/dev/null | grep -q 1; then
+            echo "skip $$v (already applied)"
+          else
+            echo "applying $$v"
+            # set -e stops here on a real failure instead of running later migrations
+            # against a half-migrated schema and burying the first error in the log.
+            $$PSQL -f "$$f"
+          fi
+        done
+        echo "migrations up to date"
+
   pgadmin:
     image: dpage/pgadmin4
-    container_name: sanctuary-pgadmin
+    container_name: sajiwa-pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com

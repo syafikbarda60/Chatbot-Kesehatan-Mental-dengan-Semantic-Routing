@@ -32,8 +32,8 @@ def get_dashboard_data(operator=Depends(require_role("konselor", "admin", "peman
         guardrail_count = query("select count(*) as c from guardrail_logs", user_id=uid)[0]["c"]
 
         pending_bookings = query(
-            "select booking_id, user_id, created_at from booking_konsultasi "
-            "where status = 'menunggu' order by created_at desc limit 10",
+            "select counseling_booking_id, student_id, created_at from counseling_bookings "
+            "where status = 'pending' order by created_at desc limit 10",
             user_id=uid,
         )
 

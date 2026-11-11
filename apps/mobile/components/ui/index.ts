@@ -6,7 +6,7 @@ export { Button }         from './Button';
 export { Divider }        from './Divider';
 export { Badge }          from './Badge';
 export { FadeIn }         from './FadeIn';
-export { default as BottomNav } from './BottomNav';
+export { default as BottomNav, BOTTOM_CLEARANCE, isSwipeTab, swipeTab, tabAnimation, useTabSwipeLock } from './BottomNav';
 
 export * from './NeuView';
 export * from './Dialog';
@@ -18,3 +18,8 @@ export * from './ScreenHeader';
 export * from './Toast';
 export * from './usePressScale';
 export * from './PressableScale';
+export * from './ConsentSheet';
+export * from './Calendar';
+export { conversationTime, clockTime } from './calendarDates';
+export * from './Fab';
+export * from './haptics';

@@ -2,6 +2,9 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Unit tests and the shared utils import './x.ts' because `node --experimental-strip-types`
+    // needs the real extension to resolve ES modules. The build never emits here anyway.
+    "allowImportingTsExtensions": true,
     "paths": {
       "@/*": [
         "./*"

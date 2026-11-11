@@ -1,13 +1,35 @@
 {
   "name": "prototype-monorepo",
   "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
+    "test": "npm run test:unit",
+    "test:unit": "npm run test:unit --workspaces --if-present && npm run backend:test:unit",
+    "test:integration": "npm run backend:test:integration",
+    "test:e2e": "node e2e/run.mjs",
+    "backend:test:unit": "cd apps/backend && venv/bin/python -m unittest discover -s tests/unit",
+    "backend:test:integration": "sh apps/backend/tests/integration/run.sh",
+    "dashboard:dev": "npm run dev --workspace @sajiwa/dashboard",
+    "dashboard:build": "npm run build --workspace @sajiwa/dashboard",
+    "dashboard:start": "npm run start --workspace @sajiwa/dashboard",
+    "dashboard:typecheck": "npm run typecheck --workspace @sajiwa/dashboard",
+    "dashboard:lint": "npm run lint --workspace @sajiwa/dashboard",
+    "dashboard:test": "npm run test --workspace @sajiwa/dashboard",
+    "mobile:test": "npm run test:unit --workspace prototype"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
-    "expo-asset": "~57.0.18",
     "semver": "^7.7.4"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
   }
 }

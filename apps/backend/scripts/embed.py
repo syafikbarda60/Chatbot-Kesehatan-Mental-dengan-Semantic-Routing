@@ -13,6 +13,12 @@ from services.chatbot.rag import EMBED_MODEL, DOCUMENT_PREFIX
 
 load_dotenv()
 
+# What the student sees cited. The filename ("REVISI FINAL", a revision date) is internal.
+# A file missing here is ingested with no citation and the prompt falls back to its name.
+CITATIONS = {
+    "Buku Depresi REVISI FINAL.docx": "Petunjuk Teknis Layanan Depresi (Kemenkes RI, 2021)",
+}
+
 def extract_text_docx(filepath):
     doc = Document(filepath)
     full_text = []
@@ -56,7 +62,8 @@ def embed_and_upload(filepath):
 
         query(
             "insert into documents (content, embedding, metadata) values (%s, %s::vector, %s)",
-            (chunk, str(embedding), Jsonb({"source": filename, "chunk": i})),
+            (chunk, str(embedding), Jsonb({"source": filename, "chunk": i,
+                                            "citation": CITATIONS.get(filename)})),
         )
 
         print(f"[{filename}] chunk {i+1}/{len(chunks)}")

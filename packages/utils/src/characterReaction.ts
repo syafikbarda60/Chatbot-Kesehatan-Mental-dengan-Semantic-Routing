@@ -5,7 +5,7 @@
 // doesn't repeat itself; the choice is deterministic (hash of the text) and
 // avoids repeating the previous face.
 
-import { KEYWORDS } from './stressDetection';
+import { KEYWORDS } from './stressDetection.ts';
 
 export type Expression =
   | 'menyapa' | 'senang' | 'tertawa' | 'wink' | 'semangat' | 'tenang'

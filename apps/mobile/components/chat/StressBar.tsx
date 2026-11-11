@@ -1,11 +1,13 @@
 // components/chat/StressBar.tsx
 // Collapsible mental wellness indicator — calm, non-clinical language
 
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Pressable } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Spacing, BorderRadius } from '@prototype/ui-shared';
 import { useTheme, Neu } from '@prototype/ui-shared';
+import { SPRING_FILL } from '../ui/motion';
 
 interface Props {
   level: number;
@@ -71,16 +73,24 @@ export const StressBar: React.FC<Props> = ({ level, onSupportPress }) => {
   const [expanded, setExpanded] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  const heightAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(1)).current;
+  // Reanimated, not the RN Animated JS driver: animating `height` there recomputed layout on
+  // the JS thread every frame, so the panel stuttered whenever chat was streaming tokens.
+  // On the UI thread it stays smooth regardless of what JS is doing.
+  const reduce = useReducedMotion();
+  const open = useSharedValue(0);
+  const fullHeight = tier !== 'calm' ? 124 : 104;
 
   useEffect(() => {
-    Animated.timing(heightAnim, {
-      toValue: expanded ? 1 : 0,
-      duration: 240,
-      useNativeDriver: false,
-    }).start();
-  }, [expanded]);
+    const to = expanded ? 1 : 0;
+    // Critically damped: unfolds like an iOS disclosure row, without a bounce at the end.
+    open.value = reduce ? withTiming(to, { duration: 0 }) : withSpring(to, SPRING_FILL);
+    // open is a stable shared value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, reduce]);
+
+  const panelStyle = useAnimatedStyle(() => ({ height: open.value * fullHeight, opacity: open.value }));
+  // The chevron used to jump 180° at once; now it turns with the panel.
+  const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${open.value * 180}deg` }] }));
 
   if (dismissed && tier === 'calm') return null;
 
@@ -106,24 +116,13 @@ export const StressBar: React.FC<Props> = ({ level, onSupportPress }) => {
           <Text style={[s.tierMessage, { color: colors.onSurfaceVariant }]} numberOfLines={1}>{config.message}</Text>
         </View>
 
-        <Animated.View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+        <Animated.View style={chevronStyle}>
           <Ionicons name="chevron-down" size={18} color={colors.textMuted} />
         </Animated.View>
       </Pressable>
 
       {/* Expanded content */}
-      <Animated.View
-        style={[
-          s.expandedContent,
-          {
-            height: heightAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, tier !== 'calm' ? 124 : 104],
-            }),
-            opacity: heightAnim,
-          },
-        ]}
-      >
+      <Animated.View style={[s.expandedContent, panelStyle]}>
         <View style={[s.divider, { backgroundColor: colors.outlineVariant + '40' }]} />
         <View style={s.expandedInner}>
           <Text style={[s.suggestion, { color: colors.onSurfaceVariant }]}>{config.suggestion}</Text>

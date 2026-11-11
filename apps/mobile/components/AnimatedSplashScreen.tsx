@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Animated, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { SajiwaColors } from '@prototype/ui-shared';
+import { SPRING } from './ui/motion';
 
 interface Props {
   onAnimationComplete: () => void;
@@ -28,7 +29,7 @@ export function AnimatedSplashScreen({ onAnimationComplete }: Props) {
         // Phase 1: Logo memudar masuk dan sedikit membesar
         Animated.parallel([
           Animated.timing(logoOp, { toValue: 1, duration: 650, useNativeDriver: true }),
-          Animated.spring(logoScale, { toValue: 1, friction: 14, tension: 40, useNativeDriver: true }),
+          Animated.spring(logoScale, { toValue: 1, ...SPRING, useNativeDriver: true }),
         ]),
         Animated.delay(900),
         // Phase 2: Seluruh container memudar menghilang

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
 import { apiSaveJournal } from '@prototype/api-client';
 import type { Expression } from '@prototype/utils';
-import { NeuView, Button, ScreenHeader, goBack, useToast, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui';
+import { NeuView, Button, ScreenHeader, goBack, useToast, FadeIn, Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/ui';
 import { Companion } from '../components/chat';
 import { MoodPicker } from '../components/MoodPicker';
 import { Mood, MOOD_COMPANION, todayPrompt } from '../constants/moods';
@@ -15,7 +16,8 @@ export default function JournalScreen() {
   const { colors } = useTheme();
   const toast = useToast();
 
-  const [content, setContent] = useState('');
+  const { draft } = useLocalSearchParams<{ draft?: string }>();
+  const [content, setContent] = useState(draft ?? '');
   const [mood, setMood] = useState<Mood | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -23,6 +25,7 @@ export default function JournalScreen() {
 
   const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   const prompt = todayPrompt();
+  const words = content.trim() ? content.trim().split(/\s+/).length : 0;
 
   // Companion: greets with today's prompt, then follows the chosen mood; thumbs-up once saved
   const companion: { face: Expression; line: string } = saved
@@ -54,9 +57,10 @@ export default function JournalScreen() {
   return (
     <KeyboardAvoidingView style={[s.root, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16 }]} keyboardShouldPersistTaps="handled">
-        <ScreenHeader back title="Tulis jurnal" subtitle={today} />
+        <ScreenHeader back title="Tulis jurnal" eyebrow={today} />
 
         {/* Companion keeps you company while writing */}
+        <FadeIn>
         <View style={s.companionRow}>
           <View style={[s.bubble, { backgroundColor: colors.background, boxShadow: Neu.raisedSm }]}>
             <Text style={[s.bubbleText, { color: colors.onSurface }]} accessibilityLiveRegion="polite">
@@ -65,7 +69,9 @@ export default function JournalScreen() {
           </View>
           <Companion expression={companion.face} size={124} />
         </View>
+        </FadeIn>
 
+        <FadeIn>
         <Text style={[s.label, { color: colors.onSurface }]}>Aku merasa…</Text>
         <MoodPicker value={mood} onChange={setMood} />
 
@@ -82,7 +88,10 @@ export default function JournalScreen() {
             textAlignVertical="top"
           />
         </NeuView>
-        <Text style={[s.counter, { color: colors.textMuted }]}>{content.trim().length} karakter</Text>
+        </FadeIn>
+        <Text style={[s.counter, { color: colors.textMuted }]}>
+          {words === 0 ? 'Tidak ada yang menilai tulisanmu di sini.' : words === 1 ? '1 kata' : `${words} kata`}
+        </Text>
       </ScrollView>
 
       <View style={[s.footer, { paddingBottom: insets.bottom + 16 }]}>

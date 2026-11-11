@@ -13,16 +13,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
-import { BottomNav, FadeIn, NeuView, ScreenHeader, useToast } from '../components/ui';
+import { BottomNav, BOTTOM_CLEARANCE, FadeIn, NeuView, ScreenHeader, useToast } from '../components/ui';
 import { callNumber } from '../components/chat/AlertModal';
 import { apiGetHotline } from '@prototype/api-client';
 import { PressableScale } from '../components/ui';
 import { Companion } from '../components/chat';
 
 type HotlineItem = {
-  nama: string;
-  nomor: string;
-  deskripsi?: string;
+  name: string;
+  phone: string;
+  description?: string;
 };
 
 export default function HotlineScreen() {
@@ -49,8 +49,8 @@ export default function HotlineScreen() {
   }, []);
 
   const filteredHotlines = hotlines.filter(h =>
-    h.nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (h.deskripsi && h.deskripsi.toLowerCase().includes(searchQuery.toLowerCase()))
+    h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (h.description && h.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   if (loading) {
@@ -65,7 +65,7 @@ export default function HotlineScreen() {
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 130 }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + BOTTOM_CLEARANCE }]}
       >
         <FadeIn>
           <ScreenHeader back title="Hotline darurat" subtitle="Bantuan profesional, gratis dan rahasia." />
@@ -117,19 +117,19 @@ export default function HotlineScreen() {
               {filteredHotlines.map((item, index) => (
                 <PressableScale
                   key={index}
-                  onPress={() => callNumber(item.nomor)}
+                  onPress={() => callNumber(item.phone)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Telepon ${item.nama}, ${item.nomor}`}
+                  accessibilityLabel={`Telepon ${item.name}, ${item.phone}`}
                   style={({ pressed }) => [
                     s.card,
                     { backgroundColor: colors.background, boxShadow: pressed ? Neu.inset : Neu.raised },
                   ]}
                 >
                   <View style={s.infoColumn}>
-                    <Text style={[s.cardTitle, { color: colors.onSurface }]}>{item.nama}</Text>
-                    <Text style={[s.cardPhone, { color: colors.primary }]}>{item.nomor}</Text>
-                    {item.deskripsi ? (
-                      <Text style={[s.cardDesc, { color: colors.onSurfaceVariant }]}>{item.deskripsi}</Text>
+                    <Text style={[s.cardTitle, { color: colors.onSurface }]}>{item.name}</Text>
+                    <Text style={[s.cardPhone, { color: colors.primary }]}>{item.phone}</Text>
+                    {item.description ? (
+                      <Text style={[s.cardDesc, { color: colors.onSurfaceVariant }]}>{item.description}</Text>
                     ) : null}
                   </View>
                   <View style={[s.callBtn, { backgroundColor: colors.stressHigh }]}>

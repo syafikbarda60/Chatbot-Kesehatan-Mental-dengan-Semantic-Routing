@@ -13,15 +13,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@prototype/ui-shared';
 import { apiRegister } from '@prototype/api-client';
-import { Button, NeuView, Input, IconButton, useToast } from '../components/ui';
-import { Companion } from '../components/chat';
+import { Button, Input, IconButton, useToast } from '../components/ui';
+import { AuthStage } from '../components/AuthStage';
+
+const SLAB = '-12px -12px 26px rgba(255,255,255,0.95), 12px 12px 28px rgba(122,134,168,0.5)';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const toast = useToast();
 
-  const [nama, setNama] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [nim, setNim] = useState('');
   const [password, setPassword] = useState('');
@@ -30,7 +32,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const handleRegister = async () => {
-    if (!nama.trim() || !email.trim() || !password.trim()) {
+    if (!name.trim() || !email.trim() || !password.trim()) {
       setError('Nama, email, dan kata sandi wajib diisi.');
       return;
     }
@@ -46,7 +48,7 @@ export default function RegisterScreen() {
       await apiRegister({
         email: email.trim(),
         password,
-        nama: nama.trim(),
+        name: name.trim(),
         nim: nim.trim() || undefined,
         role: 'mahasiswa',
       });
@@ -60,12 +62,6 @@ export default function RegisterScreen() {
   };
 
   const remaining = 8 - password.length;
-
-  const perks = [
-    { icon: 'chatbubble-ellipses-outline', label: 'Teman cerita kapan saja', color: colors.primary },
-    { icon: 'book-outline', label: 'Jurnal suasana hati', color: colors.sage },
-    { icon: 'calendar-outline', label: 'Konseling kampus', color: colors.amber },
-  ];
 
   return (
     <KeyboardAvoidingView
@@ -86,35 +82,23 @@ export default function RegisterScreen() {
         </View>
 
         <View style={s.column}>
-          {/* Hero: the companion welcomes a new friend */}
-          <NeuView radius={30} style={s.hero}>
-            <View style={{ flex: 1, gap: 6 }}>
-              <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">Buat akun</Text>
-              <Text style={[s.subtitle, { color: colors.onSurfaceVariant }]}>
-                Mulai perjalanan menjaga kesehatan mentalmu hari ini.
-              </Text>
-            </View>
-            <Companion expression="semangat" size={124} />
-          </NeuView>
-
-          {/* What you get */}
-          <View style={s.perks}>
-            {perks.map((p) => (
-              <View key={p.label} style={s.perk}>
-                <Ionicons name={p.icon as any} size={18} color={p.color} />
-                <Text style={[s.perkText, { color: colors.onSurfaceVariant }]}>{p.label}</Text>
-              </View>
-            ))}
+          {/* Hero: same stage as login, a bit smaller since the form is longer */}
+          <AuthStage expression="semangat" say="Yuk, kenalan dulu!" scale={0.5} />
+          <View style={s.heading}>
+            <Text style={[s.title, { color: colors.onSurface }]} accessibilityRole="header">Buat akun</Text>
+            <Text style={[s.subtitle, { color: colors.onSurfaceVariant }]}>
+              Teman cerita, jurnal, dan konseling kampus dalam satu tempat.
+            </Text>
           </View>
 
-          <View style={s.card}>
+          <View style={[s.card, { backgroundColor: colors.background, boxShadow: SLAB }]}>
             <Input
               label="Nama lengkap"
               placeholder="Nama lengkap kamu"
               autoComplete="name"
               textContentType="name"
-              value={nama}
-              onChangeText={setNama}
+              value={name}
+              onChangeText={setName}
               editable={!isLoading}
               leftIcon={<Ionicons name="person-outline" size={18} color={colors.onSurfaceVariant} />}
             />
@@ -191,18 +175,14 @@ export default function RegisterScreen() {
 const s = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 20 },
-  topBar: { marginBottom: 16 },
+  topBar: { marginBottom: 4 },
   column: { width: '100%', maxWidth: 440, alignSelf: 'center' },
 
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingLeft: 20, paddingRight: 8, paddingVertical: 14, marginBottom: 18 },
-  title: { fontSize: 26, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.7 },
-  subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 20 },
+  heading: { alignItems: 'center', gap: 6, marginTop: 16, marginBottom: 24, paddingHorizontal: 8 },
+  title: { fontSize: 27, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.8 },
+  subtitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_500Medium', lineHeight: 20, textAlign: 'center' },
 
-  perks: { flexDirection: 'row', gap: 8, marginBottom: 22 },
-  perk: { flex: 1, alignItems: 'center', gap: 6, paddingHorizontal: 2 },
-  perkText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', textAlign: 'center', lineHeight: 16 },
-
-  card: { gap: 8, marginBottom: 24 },
+  card: { gap: 8, marginBottom: 24, padding: 20, paddingTop: 22, borderRadius: 32 },
   errorTxt: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', textAlign: 'center', marginTop: 4 },
 
   privacyRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 24 },

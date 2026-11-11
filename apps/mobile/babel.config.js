@@ -1,6 +1,5 @@
-// babel-preset-expo lives inside the `expo` package and would load the worklets Babel plugin
-// from the monorepo root (0.8.x, pulled in by the dashboard). The mobile app runs worklets 0.5.1
-// (Expo SDK 54 / Expo Go), and the plugin must match the runtime, so load it from this app instead.
+// The worklets Babel plugin must match the worklets runtime the app ships (0.10.x on SDK 57),
+// so it is resolved from this app rather than from wherever babel-preset-expo sits in the monorepo.
 const path = require('path');
 
 const presetExpo = require.resolve('babel-preset-expo', { paths: [path.dirname(require.resolve('expo/package.json'))] });

@@ -2,5 +2,8 @@
   "name": "@prototype/utils",
   "version": "1.0.0",
   "main": "src/index.ts",
-  "private": true
+  "private": true,
+  "scripts": {
+    "test:unit": "node --experimental-strip-types --test --test-isolation=none \"src/**/*.test.ts\""
+  }
 }

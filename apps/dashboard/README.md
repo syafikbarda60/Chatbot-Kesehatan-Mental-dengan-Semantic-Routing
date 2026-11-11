@@ -1,50 +1,27 @@
-# Welcome to your Expo app 👋
+# Sajiwa administrator dashboard
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+The production administrator frontend is a Next.js application at `apps/dashboard`.
 
-## Get started
+## Local commands
 
-1. Install dependencies
+Run dependency installation from the repository root, then:
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```powershell
+npm run dashboard:dev
+npm run dashboard:typecheck
+npm run dashboard:lint
+npm run dashboard:test
+npm run dashboard:build
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Unit tests run with `npm run dashboard:test`. The browser journeys that exercise this app
+live in `e2e/` at the repository root (`npm run test:e2e`, full stack required). See
+[testing conventions](../../docs/testing-conventions.md).
 
-## Learn more
+Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_API_URL` to the FastAPI origin. This public variable must contain an origin only, never a token, database URL, or secret.
 
-To learn more about developing your project with Expo, look at the following resources:
+For a frontend-only local preview, set `NEXT_PUBLIC_PREVIEW_MODE=true` in `.env.local` and run `npm run dev`. Preview mode is accepted only when `NODE_ENV=development`; production builds ignore the flag. It supplies an obviously synthetic administrator and centralized fictional data without contacting FastAPI or storing a fake token. Open `http://localhost:3000/overview`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The application includes the responsive shell, authentication/session integration, role guard, theme and language preferences, operational overview, monitoring, student management, counseling, counselor management, analytics, assessment instruments, emergency contacts, and settings.
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The current FastAPI contract issues bearer tokens and has no refresh-token or HttpOnly-cookie flow. The dashboard therefore keeps the token in per-tab `sessionStorage`, validates it through `/auth/me` on startup, and clears it when an authenticated request returns 401. Tokens are never placed in URLs, rendered markup, or application logs.

@@ -2,14 +2,21 @@
 // Pure function — no side effects. Takes message list, returns 0–10 stress score.
 
 export type MessageSender = 'user' | 'ai';
+
+/** Minimal shape this module needs, so the shared package does not import from an app. */
+export interface StressMessage {
+  sender: MessageSender;
+  text: string;
+}
+
 export interface Message {
   id: string;
   text: string;
   sender: MessageSender;
   timestamp: Date;
-  /** Companion expression shown next to AI messages. */
-  expression?: import('./characterReaction').Expression;
+  expression?: any;
 }
+
 
 export const KEYWORDS = {
   high: [
@@ -27,7 +34,7 @@ export const KEYWORDS = {
 };
 
 /** Returns stress level 0–10 based on the last 5 user messages. */
-export function analyzeStress(messages: Message[]): number {
+export function analyzeStress(messages: StressMessage[]): number {
   const userTexts = messages
     .filter((m) => m.sender === 'user')
     .map((m) => m.text.toLowerCase());

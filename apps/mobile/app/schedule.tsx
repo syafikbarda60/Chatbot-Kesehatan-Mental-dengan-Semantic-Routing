@@ -1,41 +1,26 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, Neu } from '@prototype/ui-shared';
-import { BottomNav, FadeIn, NeuView, Button, ScreenHeader, useToast } from '../components/ui';
+import { BottomNav, BOTTOM_CLEARANCE, FadeIn, NeuView, Button, ScreenHeader, useToast, Calendar, longDate, toYmd, clockTime, haptic } from '../components/ui';
 import { Companion } from '../components/chat';
 import type { Expression } from '@prototype/utils';
+// Counseling runs on the same request -> admin assignment flow as the dashboard: slots come
+// from the availability admins set there, and a booking is a request an admin confirms.
 import {
-  apiGetJadwal, apiGetKonselor, apiBuatBooking, apiGetBookingSaya, JadwalSlot as Jadwal,
+  apiGetKonselor, apiGetCounselingSlots, apiCreateCounselingRequest, ApiError, type CounselingSlot,
 } from '@prototype/api-client';
 import { PressableScale } from '../components/ui';
+import { useUpcomingSession } from '../hooks/useUpcomingSession';
 
 type Counselor = { id: string; name: string; specialty: string };
-type Booking = {
-  booking_id: string;
-  status: 'menunggu' | 'dikonfirmasi' | 'selesai' | 'dibatalkan';
-  jadwal_konsultasi?: { tanggal: string; waktu_mulai: string; waktu_selesai: string; konselor_id: string };
-};
 
-const DAYS = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const hm = (t?: string) => (t ?? '').substring(0, 5);
-
-function getDates() {
-  const today = new Date();
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return {
-      day: i === 0 ? 'Ini' : DAYS[d.getDay()],
-      date: d.getDate(),
-      long: d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }),
-      formatted: ymd(d),
-    };
-  });
-}
+/** The phone-local calendar day a slot starts on. */
+const dayOf = (iso: string) => toYmd(new Date(iso));
+// How far ahead sessions are offered; the slots endpoint caps a request at 62 days.
+const HORIZON_DAYS = 60;
 
 const initials = (name: string) => name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
 
@@ -43,35 +28,33 @@ export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const toast = useToast();
-  const dates = getDates();
 
   const [counselors, setCounselors] = useState<Counselor[]>([]);
-  const [jadwalList, setJadwalList] = useState<Jadwal[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [slots, setSlots] = useState<CounselingSlot[]>([]);
+  const { upcoming, reload: reloadUpcoming } = useUpcomingSession();
   const [selectedCounselor, setSelectedCounselor] = useState<Counselor | null>(null);
-  const [selectedDay, setSelectedDay] = useState(0);
-  const [selectedSlot, setSelectedSlot] = useState<Jadwal | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<CounselingSlot | null>(null);
   const [isBooking, setIsBooking] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError(false);
     try {
-      const [cRes, jRes] = await Promise.all([apiGetKonselor(), apiGetJadwal()]);
+      const cRes = await apiGetKonselor();
       const mapped = cRes.users.map((u: any) => ({
         id: u.user_id,
-        name: u.nama,
+        name: u.name,
         specialty: u.role === 'konselor' ? 'Konselor psikologi' : 'Layanan dukungan',
       }));
       setCounselors(mapped);
       setSelectedCounselor((cur) => cur ?? mapped[0] ?? null);
-      setJadwalList(jRes.jadwal);
-      // Own bookings are a bonus: don't fail the whole screen if they can't load
-      apiGetBookingSaya().then((b) => setBookings(b.bookings as Booking[])).catch(() => {});
     } catch (err) {
-      console.warn('Gagal memuat jadwal', err);
+      console.warn('Gagal memuat konselor', err);
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -82,41 +65,73 @@ export default function ScheduleScreen() {
     loadData();
   }, [loadData]);
 
-  const selectedDate = dates[selectedDay];
-  // Open slots for the chosen counselor/day, in time order; today's slots that already started are hidden
-  const nowHM = new Date().toTimeString().substring(0, 5);
-  const availableSlots = selectedCounselor
-    ? jadwalList
-        .filter((j) => j.konselor_id === selectedCounselor.id && j.tanggal === selectedDate.formatted && j.status === 'tersedia')
-        .filter((j) => selectedDay !== 0 || hm(j.waktu_mulai) > nowHM)
-        .sort((a, b) => a.waktu_mulai.localeCompare(b.waktu_mulai))
-    : [];
-  // First later day this week where the chosen counselor still has an open slot
-  const nextOpenDay = dates.findIndex((d, i) => i > selectedDay && jadwalList.some(
-    (j) => j.konselor_id === selectedCounselor?.id && j.tanggal === d.formatted && j.status === 'tersedia'));
+  // Whose slots are on screen. A response for a counselor the student already tapped away
+  // from is dropped, so a slow load can never color the calendar with the wrong person's days.
+  const slotsFor = useRef<string | null>(null);
+  const loadSlots = useCallback(async (counselorId: string) => {
+    slotsFor.current = counselorId;
+    setSlotsLoading(true);
+    setSlotsError(false);
+    const to = new Date();
+    to.setDate(to.getDate() + HORIZON_DAYS);
+    try {
+      const res = await apiGetCounselingSlots(counselorId, toYmd(new Date()), toYmd(to));
+      if (slotsFor.current === counselorId) setSlots(res.slots);
+    } catch {
+      // A card with a retry, not a toast: a toast re-renders its provider, which would hand
+      // this callback a new `toast` and re-run the load in a loop while the server is down.
+      if (slotsFor.current === counselorId) { setSlots([]); setSlotsError(true); }
+    } finally {
+      if (slotsFor.current === counselorId) setSlotsLoading(false);
+    }
+  }, []);
 
-  // Nearest upcoming session that is still active
-  const today = ymd(new Date());
-  const upcoming = bookings
-    .filter((b) => (b.status === 'menunggu' || b.status === 'dikonfirmasi') && (b.jadwal_konsultasi?.tanggal ?? '') >= today)
-    .sort((a, b) =>
-      `${a.jadwal_konsultasi!.tanggal}${a.jadwal_konsultasi!.waktu_mulai}`.localeCompare(`${b.jadwal_konsultasi!.tanggal}${b.jadwal_konsultasi!.waktu_mulai}`),
-    )[0];
-  const counselorName = (id?: string) => counselors.find((c) => c.id === id)?.name ?? 'Konselor kampus';
+  useEffect(() => {
+    if (selectedCounselor) loadSlots(selectedCounselor.id);
+  }, [selectedCounselor, loadSlots]);
+
+  const today = toYmd(new Date());
+
+  // The days the calendar colors in; every other day is grey and cannot be picked. The server
+  // already returns only sessions still ahead, inside admin-set availability, not taken.
+  const openDates = useMemo(() => new Set(slots.map((s) => dayOf(s.starts_at))), [slots]);
+
+  // Land on the counselor's first open day, and move off a day that stopped being open (its
+  // last slot was just booked, or another counselor was picked) instead of showing it empty.
+  useEffect(() => {
+    setSelectedDate((cur) => (cur && openDates.has(cur) ? cur : [...openDates].sort()[0] ?? null));
+  }, [openDates]);
+
+  // Already in time order from the server.
+  const availableSlots = slots.filter((s) => dayOf(s.starts_at) === selectedDate);
+  const nextOpenDate = [...openDates].filter((d) => d > (selectedDate ?? '')).sort()[0];
 
   const handleBook = async () => {
-    if (!selectedSlot) return;
+    if (!selectedSlot || !selectedCounselor) return;
+    const counselorId = selectedCounselor.id;
     setIsBooking(true);
     try {
-      await apiBuatBooking(selectedSlot.jadwal_id);
-      // Bookings start as 'menunggu' until the counselor approves
-      toast.show(`Permintaan sesi ${hm(selectedSlot.waktu_mulai)} terkirim. Tunggu konfirmasi konselor, ya.`);
-      setSelectedSlot(null);
-      await loadData();
-    } catch (e: any) {
-      toast.show(`Permintaan belum terkirim: ${e.message}`, 'error');
+      await apiCreateCounselingRequest({
+        preferred_counselor_id: counselorId,
+        preferred_starts_at: selectedSlot.starts_at,
+        preferred_ends_at: selectedSlot.ends_at,
+      });
+      // A request, not a booking yet: an admin confirms it from the dashboard queue.
+      toast.show(`Permintaan sesi ${longDate(dayOf(selectedSlot.starts_at))}, ${clockTime(selectedSlot.starts_at)} terkirim. Tim Sajiwa akan mengonfirmasi, ya.`);
+    } catch (e) {
+      toast.show(
+        e instanceof ApiError && e.status === 409
+          ? 'Waktu itu baru saja diambil orang lain. Pilih waktu lain, ya.'
+          : `Permintaan belum terkirim: ${(e as Error).message}`,
+        'error',
+      );
     } finally {
       setIsBooking(false);
+      setSelectedSlot(null);
+      // Either way the offer changed: the pick is now held for this student, or someone
+      // else took it first.
+      loadSlots(counselorId);
+      reloadUpcoming();
     }
   };
 
@@ -135,15 +150,15 @@ export default function ScheduleScreen() {
   );
 
   const STATUS = {
-    menunggu: { label: 'Menunggu konfirmasi', color: colors.stressMid, icon: 'time-outline' },
-    dikonfirmasi: { label: 'Dikonfirmasi', color: '#3B7A56', icon: 'checkmark-circle-outline' },
+    pending: { label: 'Menunggu konfirmasi', color: colors.stressMid, icon: 'time-outline' },
+    confirmed: { label: 'Dikonfirmasi', color: '#3B7A56', icon: 'checkmark-circle-outline' },
   } as const;
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[s.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + BOTTOM_CLEARANCE }]}
       >
         <ScreenHeader title="Konseling" subtitle="Ngobrol langsung dengan konselor kampus. Gratis dan rahasia." />
 
@@ -162,22 +177,22 @@ export default function ScheduleScreen() {
                   <Text style={[s.sectionLabel, { color: colors.onSurface, marginBottom: 0 }]}>Sesi kamu</Text>
                   <View style={s.sessionRow}>
                     <View style={[s.dateBlock, { backgroundColor: colors.amberFill }]}>
-                      <Text style={s.dateBlockDay}>{new Date(upcoming.jadwal_konsultasi!.tanggal).getDate()}</Text>
+                      <Text style={s.dateBlockDay}>{new Date(upcoming.start).getDate()}</Text>
                       <Text style={s.dateBlockMonth}>
-                        {new Date(upcoming.jadwal_konsultasi!.tanggal).toLocaleDateString('id-ID', { month: 'short' })}
+                        {new Date(upcoming.start).toLocaleDateString('id-ID', { month: 'short' })}
                       </Text>
                     </View>
                     <View style={{ flex: 1, gap: 3 }}>
                       <Text style={[s.sessionName, { color: colors.onSurface }]} numberOfLines={1}>
-                        {counselorName(upcoming.jadwal_konsultasi?.konselor_id)}
+                        {upcoming.counselor ?? 'Konselor kampus'}
                       </Text>
                       <Text style={[s.sessionMeta, { color: colors.onSurfaceVariant }]}>
-                        {new Date(upcoming.jadwal_konsultasi!.tanggal).toLocaleDateString('id-ID', { weekday: 'long' })}, {hm(upcoming.jadwal_konsultasi?.waktu_mulai)}–{hm(upcoming.jadwal_konsultasi?.waktu_selesai)}
+                        {longDate(dayOf(upcoming.start))}, {clockTime(upcoming.start)}–{clockTime(upcoming.end)}
                       </Text>
                       <View style={s.statusRow}>
-                        <Ionicons name={STATUS[upcoming.status as 'menunggu' | 'dikonfirmasi'].icon} size={14} color={STATUS[upcoming.status as 'menunggu' | 'dikonfirmasi'].color} />
-                        <Text style={[s.statusText, { color: STATUS[upcoming.status as 'menunggu' | 'dikonfirmasi'].color }]}>
-                          {STATUS[upcoming.status as 'menunggu' | 'dikonfirmasi'].label}
+                        <Ionicons name={STATUS[upcoming.status].icon} size={14} color={STATUS[upcoming.status].color} />
+                        <Text style={[s.statusText, { color: STATUS[upcoming.status].color }]}>
+                          {STATUS[upcoming.status].label}
                         </Text>
                       </View>
                     </View>
@@ -239,7 +254,11 @@ export default function ScheduleScreen() {
                       return (
                         <PressableScale
                           key={c.id}
-                          onPress={() => { setSelectedCounselor(c); setSelectedSlot(null); }}
+                          onPress={() => {
+                            if (!active) haptic.select();
+                            setSelectedCounselor(c);
+                            setSelectedSlot(null);
+                          }}
                           accessibilityRole="radio"
                           accessibilityState={{ selected: active }}
                           accessibilityLabel={`${c.name}, ${c.specialty}`}
@@ -258,57 +277,70 @@ export default function ScheduleScreen() {
 
                 {/* ── Dates ── */}
                 <FadeIn>
-                  <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Pilih tanggal</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hList} style={s.hScroll}>
-                    {dates.map((d, i) => {
-                      const active = selectedDay === i;
-                      return (
-                        <PressableScale
-                          key={d.formatted}
-                          onPress={() => { setSelectedDay(i); setSelectedSlot(null); }}
-                          accessibilityRole="radio"
-                          accessibilityState={{ selected: active }}
-                          accessibilityLabel={d.long}
-                          style={[s.dateChip, { backgroundColor: active ? colors.amber : colors.background, boxShadow: Neu.raisedSm }]}
-                        >
-                          <Text style={[s.dayLabel, { color: active ? colors.onPrimary : colors.onSurfaceVariant }]}>{d.day}</Text>
-                          <Text style={[s.dateNum, { color: active ? colors.onPrimary : colors.onSurface }]}>{d.date}</Text>
-                        </PressableScale>
-                      );
-                    })}
-                  </ScrollView>
+                  <View style={s.labelRow}>
+                    <Text style={[s.sectionLabel, { color: colors.onSurface, marginBottom: 0 }]}>Pilih tanggal</Text>
+                    {slotsLoading && <ActivityIndicator size="small" color={colors.amber} accessibilityLabel="Memuat jadwal konselor" />}
+                  </View>
+                  <NeuView radius={24} style={s.calendarCard}>
+                    <Calendar
+                      value={selectedDate}
+                      onChange={(d) => { setSelectedDate(d); setSelectedSlot(null); }}
+                      available={openDates}
+                      minDate={today}
+                    />
+                  </NeuView>
                 </FadeIn>
 
                 {/* ── Slots ── */}
                 <FadeIn>
-                  <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Pilih waktu</Text>
-                  {availableSlots.length === 0 ? (
+                  <Text style={[s.sectionLabel, { color: colors.onSurface, marginBottom: selectedDate ? 2 : 12 }]}>
+                    Pilih waktu
+                  </Text>
+                  {selectedDate && (
+                    <Text style={[s.slotDate, { color: colors.onSurfaceVariant }]}>{longDate(selectedDate)}</Text>
+                  )}
+                  {slotsLoading ? (
+                    // Nothing yet, rather than an empty-state card that flashes and vanishes.
+                    <View style={s.slotsPlaceholder} />
+                  ) : slotsError ? (
+                    <StateCard face="bingung" title="Jadwal belum bisa dimuat" body="Periksa koneksi internetmu, lalu coba lagi.">
+                      <Button
+                        label="Coba lagi"
+                        variant="secondary"
+                        onPress={() => selectedCounselor && loadSlots(selectedCounselor.id)}
+                      />
+                    </StateCard>
+                  ) : availableSlots.length === 0 ? (
                     <StateCard
                       face="berpikir"
-                      title="Belum ada jadwal di hari ini"
-                      body={`${selectedCounselor?.name ?? 'Konselor'} tidak membuka sesi pada ${selectedDate.long}.`}
+                      title={selectedDate ? 'Belum ada jadwal di hari ini' : 'Belum ada jadwal terbuka'}
+                      body={
+                        selectedDate
+                          ? `${selectedCounselor?.name ?? 'Konselor'} tidak membuka sesi pada ${longDate(selectedDate)}.`
+                          : `${selectedCounselor?.name ?? 'Konselor'} belum membuka sesi dalam waktu dekat.`
+                      }
                     >
-                      {nextOpenDay > 0 ? (
+                      {nextOpenDate ? (
                         <Button
-                          label={`Lihat ${dates[nextOpenDay].long}`}
+                          label={`Lihat ${longDate(nextOpenDate)}`}
                           variant="secondary"
-                          onPress={() => { setSelectedDay(nextOpenDay); setSelectedSlot(null); }}
+                          onPress={() => { haptic.select(); setSelectedDate(nextOpenDate); setSelectedSlot(null); }}
                         />
                       ) : (
                         <Text style={[s.muted, { color: colors.onSurfaceVariant }]}>
-                          Belum ada jadwal minggu ini. Coba pilih konselor lain.
+                          Coba pilih konselor lain, atau cerita dulu ke Sajiwa sambil menunggu.
                         </Text>
                       )}
                     </StateCard>
                   ) : (
                     <View style={s.slotsGrid}>
                       {availableSlots.map((slot) => {
-                        const active = selectedSlot?.jadwal_id === slot.jadwal_id;
-                        const label = `${hm(slot.waktu_mulai)}–${hm(slot.waktu_selesai)}`;
+                        const active = selectedSlot?.starts_at === slot.starts_at;
+                        const label = `${clockTime(slot.starts_at)}–${clockTime(slot.ends_at)}`;
                         return (
                           <PressableScale
-                            key={slot.jadwal_id}
-                            onPress={() => setSelectedSlot(slot)}
+                            key={slot.starts_at}
+                            onPress={() => { if (!active) haptic.select(); setSelectedSlot(slot); }}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: active }}
                             accessibilityLabel={`Pukul ${label}`}
@@ -333,7 +365,7 @@ export default function ScheduleScreen() {
                 {/* ── CTA ── */}
                 <FadeIn>
                   <Button
-                    label={selectedSlot ? `Minta sesi ${hm(selectedSlot.waktu_mulai)}` : 'Pilih waktu dulu'}
+                    label={selectedSlot ? `Minta sesi ${clockTime(selectedSlot.starts_at)}` : 'Pilih waktu dulu'}
                     onPress={handleBook}
                     loading={isBooking}
                     disabled={!selectedSlot}
@@ -393,9 +425,10 @@ const s = StyleSheet.create({
   counselorName: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
   counselorSpec: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },
 
-  dateChip: { width: 58, minHeight: 72, borderRadius: 18, alignItems: 'center', justifyContent: 'center', gap: 4 },
-  dayLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
-  dateNum: { fontSize: 19, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  calendarCard: { padding: 16 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  slotsPlaceholder: { minHeight: 48 },
+  slotDate: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium', marginBottom: 12 },
 
   slotsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   slotChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 48, paddingHorizontal: 14, borderRadius: 16 },

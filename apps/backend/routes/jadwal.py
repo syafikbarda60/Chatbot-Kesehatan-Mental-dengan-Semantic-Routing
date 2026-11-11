@@ -9,22 +9,22 @@ router = APIRouter(tags=["Jadwal Konsultasi"])
 
 
 class BuatJadwalRequest(BaseModel):
-    tanggal: str
-    waktu_mulai: str
-    waktu_selesai: str
+    date: str
+    start_time: str
+    end_time: str
 
 
 class BookingRequest(BaseModel):
-    jadwal_id: str
-    catatan: Optional[str] = None
+    counseling_slot_id: str
+    notes: Optional[str] = None
 
 
 class UpdateBookingRequest(BaseModel):
-    status: Literal["menunggu", "dikonfirmasi", "selesai", "dibatalkan"]
+    status: Literal["pending", "confirmed", "completed", "cancelled"]
 
 
 class UpdateJadwalRequest(BaseModel):
-    status: Literal["tersedia", "dipesan", "selesai", "dibatalkan"]
+    status: Literal["available", "booked", "completed", "cancelled"]
 
 
 @router.post("/jadwal", status_code=status.HTTP_201_CREATED)
@@ -33,9 +33,9 @@ def buat_jadwal(
     user=Depends(require_role("konselor", "admin")),
 ):
     rows = query(
-        "insert into jadwal_konsultasi (konselor_id, tanggal, waktu_mulai, waktu_selesai, status) "
-        "values (%s, %s, %s, %s, 'tersedia') returning *",
-        (user.id, request.tanggal, request.waktu_mulai, request.waktu_selesai),
+        "insert into counseling_slots (counselor_id, date, start_time, end_time, status) "
+        "values (%s, %s, %s, %s, 'available') returning *",
+        (user.id, request.date, request.start_time, request.end_time),
         user_id=user.id,
     )
     if not rows:
@@ -46,8 +46,8 @@ def buat_jadwal(
 @router.get("/jadwal")
 def lihat_jadwal_tersedia(user=Depends(get_current_user)):
     rows = query(
-        "select jadwal_id, konselor_id, tanggal, waktu_mulai, waktu_selesai, status "
-        "from jadwal_konsultasi where status = 'tersedia' order by tanggal",
+        "select counseling_slot_id, counselor_id, date, start_time, end_time, status "
+        "from counseling_slots where status = 'available' order by date",
         user_id=user.id,
     )
     return {"jadwal": rows}
@@ -56,24 +56,24 @@ def lihat_jadwal_tersedia(user=Depends(get_current_user)):
 @router.get("/jadwal/saya")
 def lihat_jadwal_saya(user=Depends(require_role("konselor", "admin"))):
     rows = query(
-        "select jadwal_id, tanggal, waktu_mulai, waktu_selesai, status "
-        "from jadwal_konsultasi where konselor_id = %s order by tanggal desc",
+        "select counseling_slot_id, date, start_time, end_time, status "
+        "from counseling_slots where counselor_id = %s order by date desc",
         (user.id,),
         user_id=user.id,
     )
     return {"jadwal": rows}
 
 
-@router.patch("/jadwal/{jadwal_id}")
+@router.patch("/jadwal/{counseling_slot_id}")
 def update_status_jadwal(
-    jadwal_id: str,
+    counseling_slot_id: str,
     request: UpdateJadwalRequest,
     user=Depends(require_role("konselor", "admin")),
 ):
     rows = query(
-        "update jadwal_konsultasi set status = %s where jadwal_id = %s and konselor_id = %s "
-        "returning jadwal_id",
-        (request.status, jadwal_id, user.id),
+        "update counseling_slots set status = %s where counseling_slot_id = %s and counselor_id = %s "
+        "returning counseling_slot_id",
+        (request.status, counseling_slot_id, user.id),
         user_id=user.id,
     )
     if not rows:
@@ -84,20 +84,20 @@ def update_status_jadwal(
 @router.post("/booking", status_code=status.HTTP_201_CREATED)
 def buat_booking(request: BookingRequest, user=Depends(get_current_user)):
     jadwal = query(
-        "select status from jadwal_konsultasi where jadwal_id = %s",
-        (request.jadwal_id,),
+        "select status from counseling_slots where counseling_slot_id = %s",
+        (request.counseling_slot_id,),
         user_id=user.id,
     )
 
     if not jadwal:
         raise HTTPException(status_code=404, detail="Jadwal tidak ditemukan")
-    if jadwal[0]["status"] != "tersedia":
+    if jadwal[0]["status"] != "available":
         raise HTTPException(status_code=409, detail="Jadwal sudah tidak tersedia")
 
     rows = query(
-        "insert into booking_konsultasi (jadwal_id, user_id, catatan, status) "
-        "values (%s, %s, %s, 'menunggu') returning *",
-        (request.jadwal_id, user.id, request.catatan),
+        "insert into counseling_bookings (counseling_slot_id, student_id, notes, status) "
+        "values (%s, %s, %s, 'pending') returning *",
+        (request.counseling_slot_id, user.id, request.notes),
         user_id=user.id,
     )
     if not rows:
@@ -108,16 +108,16 @@ def buat_booking(request: BookingRequest, user=Depends(get_current_user)):
 
 def _embed_jadwal(row: dict) -> dict:
     return {
-        "booking_id": row["booking_id"],
-        "jadwal_id": row["jadwal_id"],
+        "counseling_booking_id": row["counseling_booking_id"],
+        "counseling_slot_id": row["counseling_slot_id"],
         "status": row["status"],
-        "catatan": row["catatan"],
+        "notes": row["notes"],
         "created_at": row["created_at"],
-        "jadwal_konsultasi": {
-            "tanggal": row["tanggal"],
-            "waktu_mulai": row["waktu_mulai"],
-            "waktu_selesai": row["waktu_selesai"],
-            "konselor_id": row["konselor_id"],
+        "counseling_slots": {
+            "date": row["date"],
+            "start_time": row["start_time"],
+            "end_time": row["end_time"],
+            "counselor_id": row["counselor_id"],
         },
     }
 
@@ -125,10 +125,10 @@ def _embed_jadwal(row: dict) -> dict:
 @router.get("/booking/saya")
 def lihat_booking_saya(user=Depends(get_current_user)):
     rows = query(
-        "select b.booking_id, b.jadwal_id, b.status, b.catatan, b.created_at, "
-        "j.tanggal, j.waktu_mulai, j.waktu_selesai, j.konselor_id "
-        "from booking_konsultasi b join jadwal_konsultasi j on j.jadwal_id = b.jadwal_id "
-        "where b.user_id = %s order by b.created_at desc",
+        "select b.counseling_booking_id, b.counseling_slot_id, b.status, b.notes, b.created_at, "
+        "j.date, j.start_time, j.end_time, j.counselor_id "
+        "from counseling_bookings b join counseling_slots j on j.counseling_slot_id = b.counseling_slot_id "
+        "where b.student_id = %s order by b.created_at desc",
         (user.id,),
         user_id=user.id,
     )
@@ -138,25 +138,25 @@ def lihat_booking_saya(user=Depends(get_current_user)):
 @router.get("/booking/masuk")
 def lihat_booking_masuk(user=Depends(require_role("konselor", "admin"))):
     rows = query(
-        "select b.booking_id, b.jadwal_id, b.status, b.catatan, b.created_at, "
-        "j.tanggal, j.waktu_mulai, j.waktu_selesai, j.konselor_id "
-        "from booking_konsultasi b join jadwal_konsultasi j on j.jadwal_id = b.jadwal_id "
-        "where j.konselor_id = %s order by b.created_at desc",
+        "select b.counseling_booking_id, b.counseling_slot_id, b.status, b.notes, b.created_at, "
+        "j.date, j.start_time, j.end_time, j.counselor_id "
+        "from counseling_bookings b join counseling_slots j on j.counseling_slot_id = b.counseling_slot_id "
+        "where j.counselor_id = %s order by b.created_at desc",
         (user.id,),
         user_id=user.id,
     )
     return {"bookings": [_embed_jadwal(r) for r in rows]}
 
 
-@router.patch("/booking/{booking_id}")
+@router.patch("/booking/{counseling_booking_id}")
 def update_status_booking(
-    booking_id: str,
+    counseling_booking_id: str,
     request: UpdateBookingRequest,
     user=Depends(get_current_user),
 ):
     rows = query(
-        "update booking_konsultasi set status = %s where booking_id = %s returning booking_id",
-        (request.status, booking_id),
+        "update counseling_bookings set status = %s where counseling_booking_id = %s returning counseling_booking_id",
+        (request.status, counseling_booking_id),
         user_id=user.id,
     )
 

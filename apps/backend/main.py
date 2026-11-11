@@ -12,6 +12,13 @@ from routes.jadwal import router as jadwal_router
 from routes.journal import router as journal_router
 from routes.admin import router as admin_router
 from routes.admin_operations import router as admin_operations_router
+from routes.iteration3 import admin_router as iteration3_admin_router, student_router as counseling_request_router
+from routes.iteration4 import admin_router as iteration4_admin_router, assessment_router as iteration4_assessment_router
+from routes.backend_enablement import admin_router as backend_enablement_admin_router, counselor_router as backend_enablement_counselor_router
+from routes.counselor import admin_router as counselor_admin_router, router as counselor_router
+from routes.dass21_batch import admin_router as dass21_batch_admin_router
+from routes.realtime import lifespan as realtime_lifespan, router as realtime_router
+from routes.notifications import router as notifications_router
 
 from routes.chat import (
     guardrail_router,
@@ -31,14 +38,15 @@ def get_emergency_hotline():
 
 
 app = FastAPI(
-    title="Sanctuary — Mental Health Chatbot API",
+    title="Sajiwa — Mental Health Chatbot API",
     description=(
-        "Backend API untuk aplikasi Sanctuary. Mencakup CB-01..CB-14: "
+        "Backend API untuk aplikasi Sajiwa. Mencakup CB-01..CB-14: "
         "asesmen, chatbot, guardrail, auth, dashboard, dan manajemen akun."
     ),
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=realtime_lifespan,
 )
 
 app.add_middleware(
@@ -50,6 +58,7 @@ app.add_middleware(
 )
 
 app.include_router(assessment_router)
+app.include_router(notifications_router)
 app.include_router(hotline_router)
 app.include_router(guardrail_router)
 app.include_router(router_router)
@@ -61,11 +70,21 @@ app.include_router(jadwal_router)
 app.include_router(journal_router)
 app.include_router(admin_router)
 app.include_router(admin_operations_router)
+app.include_router(iteration3_admin_router)
+app.include_router(counseling_request_router)
+app.include_router(iteration4_admin_router)
+app.include_router(iteration4_assessment_router)
+app.include_router(backend_enablement_admin_router)
+app.include_router(backend_enablement_counselor_router)
+app.include_router(dass21_batch_admin_router)
+app.include_router(counselor_router)
+app.include_router(counselor_admin_router)
+app.include_router(realtime_router)
 
 
 @app.get("/", tags=["Health"])
 def root():
-    return {"status": "ok", "app": "Sanctuary Backend", "version": "1.0.0"}
+    return {"status": "ok", "app": "Sajiwa Backend", "version": "1.0.0"}
 
 
 @app.get("/health", tags=["Health"])
@@ -84,7 +103,7 @@ def health():
             "CB-05": "POST /router/intent",
             "CB-06": "POST /rag/context",
             "CB-07": "POST /chat/stream",
-            "CB-08": "POST /chat/history",
+            "CB-08": "GET  /chat/history",
             "CB-09": "POST /auth/login",
             "CB-10": "GET  /dashboard/data",
             "CB-11": "GET  /accounts",
