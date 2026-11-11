@@ -68,7 +68,7 @@ export default function RootLayout() {
     [pathname],
   );
 
-  // A rejected session (expired after 7 days, or its account gone) signs out everywhere, not
+  // A rejected session (expired, revoked, or its account gone) signs out everywhere, not
   // just in storage: screens still holding the old user — the privacy sheet above all — would
   // keep calling the API with it and report every 401 as a connection problem.
   const { logout } = useAuth();

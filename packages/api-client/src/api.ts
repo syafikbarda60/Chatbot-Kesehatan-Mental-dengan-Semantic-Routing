@@ -99,6 +99,15 @@ export async function apiLogin(payload: LoginPayload): Promise<LoginResponse> {
 }
 
 export async function apiLogout(): Promise<void> {
+  // MASVS-AUTH-1: revoke the token on the server first; forgetting it locally left a copied
+  // token valid until expiry. Offline or already-expired: still log out on this device.
+  // auth:false keeps a 401 here from re-entering the unauthorized callback, which logs out.
+  const token = await getToken();
+  if (token) {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST', auth: false, headers: { Authorization: `Bearer ${token}` } });
+    } catch {}
+  }
   await clearAuth();
 }
 
