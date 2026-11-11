@@ -41,4 +41,6 @@ psql $env:DATABASE_OWNER_URL -tAc "select version from schema_migrations order b
 
 `008_counselor_workspace.sql` gives the counselor portal real data. `counselor_case_assignments` is the caseload: assigning an active appointment opens the case (trigger), an admin revokes it, and `counselor_has_case()` (`SECURITY DEFINER`) is the one rule the case-scoped policies on `users`, `student_academic_profiles`, `counseling_requests` and `student_support_profiles` share — the old policy that let every counselor read every support profile is dropped. `counselor_exception_requests` holds counselor time-off requests; an admin approval creates the `counselor_blocked_periods` row and never cancels the overlapping sessions. Apply it after `007_privacy_consent.sql`.
 
+`012_dass21_batch.sql` backs the admin DASS-21 batch editor: a partial unique index allows one open draft per instrument (skipped with a notice if old data already has two), and `publish_approved_dass21_version()` (`SECURITY DEFINER`) lets a counselor's approval of the standard DASS-21 publish it, which RLS would otherwise forbid. Apply it after `011_notifications.sql`.
+
 `sajiwa_app` is the canonical and only runtime role; every migration grants its new objects to it. A grant to a nonexistent role aborts the migration transaction, so `db/init/02_auth.sql` creates it first.
