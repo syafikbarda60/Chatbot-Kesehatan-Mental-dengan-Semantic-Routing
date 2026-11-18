@@ -1,0 +1,175 @@
+{
+  "notes": [
+    "New exploratory baseline, not the original C500 dataset.",
+    "A hit needs every phrase of at least one group in a single top-5 chunk from the expected source.",
+    "Reference phrases were read from the source DOCX before retrieval; no independent clinician review yet.",
+    "Generation quality is out of scope here (see the remediation plan, stage 4)."
+  ],
+  "source": "Buku Depresi REVISI FINAL.docx",
+  "citation": "Petunjuk Teknis Layanan Depresi (Kemenkes RI, 2021)",
+  "k": 5,
+  "min_similarity": 0.3,
+  "in_domain": [
+    {
+      "query": "Apa pengertian depresi dan gejala utamanya?",
+      "groups": [
+        [
+          "afek depresif",
+          "kehilangan minat"
+        ]
+      ],
+      "reference": "Definition paragraph and table 0: afek depresif, kehilangan minat, kehilangan energi."
+    },
+    {
+      "query": "Apa tiga gejala mayor pada gangguan depresi?",
+      "groups": [
+        [
+          "kehilangan minat",
+          "kehilangan energi"
+        ]
+      ],
+      "reference": "Table 0: major symptoms."
+    },
+    {
+      "query": "Berapa lama gejala harus berlangsung untuk diagnosis depresi?",
+      "groups": [
+        [
+          "minimal 2 minggu"
+        ]
+      ],
+      "reference": "Diagnostic table 1 step 4 and table 2: minimal 2 minggu."
+    },
+    {
+      "query": "Apa saja gejala tambahan pada depresi selain gejala utama?",
+      "groups": [
+        [
+          "konsentrasi",
+          "harga diri"
+        ]
+      ],
+      "reference": "Definition and table 0 minor symptoms: concentration and self-esteem reduction."
+    },
+    {
+      "query": "Apa langkah pertama pemeriksaan diagnosis depresi?",
+      "groups": [
+        [
+          "menyingkirkan",
+          "penyakit organik",
+          "penyalahgunaan zat"
+        ]
+      ],
+      "reference": "Table 1 step 1: exclude organic disease and substance misuse."
+    },
+    {
+      "query": "Bagaimana depresi sedang memengaruhi aktivitas sehari-hari?",
+      "groups": [
+        [
+          "kesulitan",
+          "aktivitas yang biasa"
+        ]
+      ],
+      "reference": "Severity/function table: kemungkinan mengalami kesulitan menjalani aktivitas yang biasa dilakukan."
+    },
+    {
+      "query": "Gejala psikotik apa yang dapat timbul pada depresi berat?",
+      "groups": [
+        [
+          "halusinasi",
+          "waham"
+        ]
+      ],
+      "reference": "Severity/function table: halusinasi, waham, retardasi psikomotor, stupor."
+    },
+    {
+      "query": "Apa saja materi psikoedukasi bagi penderita depresi dan keluarga?",
+      "groups": [
+        [
+          "regulasi diri",
+          "manajemen stres"
+        ],
+        [
+          "manajemen konflik",
+          "kepatuhan pengobatan"
+        ]
+      ],
+      "reference": "Table 11: psychoeducation includes self regulation, stress/conflict management and adherence."
+    },
+    {
+      "query": "Bagaimana keluarga dapat membantu mencegah depresi melalui pola hidup sehat?",
+      "groups": [
+        [
+          "makan seimbang",
+          "tidur berkualitas"
+        ]
+      ],
+      "reference": "Table 5 family actions: balanced food, rest, quality sleep, exercise."
+    },
+    {
+      "query": "Apa saja bentuk intervensi psikososial untuk depresi?",
+      "groups": [
+        [
+          "relaksasi",
+          "psikoterapi sederhana"
+        ]
+      ],
+      "reference": "Table 11: psychosocial intervention list."
+    },
+    {
+      "query": "Apa contoh obat antidepresan golongan SSRI dalam pedoman?",
+      "groups": [
+        [
+          "sertralin",
+          "esitalopram"
+        ]
+      ],
+      "reference": "Tables 17/18 SSRI list."
+    },
+    {
+      "query": "Kapan kasus depresi dengan psikotik atau mania harus dirujuk?",
+      "groups": [
+        [
+          "psikotik dan mania",
+          "dirujuk"
+        ]
+      ],
+      "reference": "Table 1 step 6: bila disertai psikotik dan mania, maka dirujuk."
+    },
+    {
+      "query": "Apa yang dipantau selama penghentian obat antidepresan?",
+      "groups": [
+        [
+          "kekambuhan gejala depresi",
+          "penghentian obat"
+        ]
+      ],
+      "reference": "Table 21 step 5: monitor recurrence during antidepressant discontinuation."
+    },
+    {
+      "query": "Bagaimana sekolah atau perguruan tinggi mendeteksi masalah kesehatan jiwa?",
+      "groups": [
+        [
+          "deteksi dini masalah kesehatan jiwa",
+          "rutin"
+        ]
+      ],
+      "reference": "Table 9: regular early detection at school/university."
+    },
+    {
+      "query": "Bagaimana mengatasi self stigma pada penderita depresi?",
+      "groups": [
+        [
+          "rekonstruksi kognitif",
+          "cbt"
+        ]
+      ],
+      "reference": "Table 23: cognitive reconstruction, CBT and family support for self stigma."
+    }
+  ],
+  "out_of_domain": [
+    "Bagaimana resep nasi goreng seafood yang enak?",
+    "Siapa pemenang Piala Dunia sepak bola tahun 2022?",
+    "Bagaimana cara mengganti oli mesin sepeda motor?",
+    "Tuliskan kode Python untuk mengurutkan angka dengan quicksort.",
+    "Berapa jarak planet Jupiter dari Matahari?"
+  ]
+}

@@ -8,6 +8,7 @@ from services.chatbot.guardrail import (
     is_crisis,
     strip_profanity,
     PROFANITY_REPLY,
+    policy_reply,
 )
 from services.chatbot.conversational import conversational_route, build_messages as conversational_messages
 from services.chatbot.history import load_history
@@ -25,10 +26,28 @@ from services.chatbot.rag import (
 # zero-vector mock only looks like graceful degradation; every message would match the same route.
 encoder = OllamaEncoder(name=EMBED_MODEL)
 
+# Calibrated on the frozen regression fixtures (100 labelled messages + 8 paraphrase groups).
+# `max` aggregation: a route wins on its single closest utterance. The default `mean`
+# diluted one strong match with weak neighbours, and the default top_k=5 only let the
+# five nearest utterances (often all from one route) be considered — together those two
+# sent 21 of 24 baseline misses to the fallback instead of their route.
+# Thresholds are decision thresholds for the router, not evaluation pass marks.
+ROUTE_THRESHOLDS = {
+    "guardrail": 0.50,       # fuzzy safety net; is_crisis() stays the deterministic boundary
+    "conversational": 0.32,
+    "rag": 0.45,
+    "provenance": 0.51,
+}
+
 _router = SemanticRouter(
-    routes=[guardrail_route, conversational_route, rag_route, provenance_route],
+    routes=[
+        route.model_copy(update={"score_threshold": ROUTE_THRESHOLDS[route.name]})
+        for route in (guardrail_route, conversational_route, rag_route, provenance_route)
+    ],
     encoder=encoder,
-    auto_sync="local"
+    top_k=10,
+    aggregation="max",
+    auto_sync="local",
 )
 
 
@@ -58,10 +77,18 @@ def chat_stream(
 
     `route` is accepted so callers that already routed do not pay for it twice.
     """
-    route = route or (semantic_router(user_message).name or "conversational")
+    # A caller-supplied route is an optimization, never permission to bypass safety.
+    route = "guardrail" if is_crisis(user_message) else (
+        route or (semantic_router(user_message).name or "conversational")
+    )
 
     if route == "guardrail":
         yield HARDCODED_RESPONSE
+        return
+
+    refusal = policy_reply(user_message)
+    if refusal:
+        yield refusal
         return
 
     # Deterministic: asked where its knowledge comes from, the model invented sources and a

@@ -57,9 +57,6 @@ env/
 /.env
 *.zip
 
-# local validation exports
-/apps/dashboard/dist-*/
-
 # testing artifacts: betterwright keeps sessions/profiles in ~/.betterwright; a repo-local
 # profile, or a recording/screenshot saved beside a journey, is transient
 /.betterwright/

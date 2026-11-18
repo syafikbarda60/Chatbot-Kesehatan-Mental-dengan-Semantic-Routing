@@ -75,9 +75,6 @@ class Iteration41StaticContracts(unittest.TestCase):
     def setUpClass(cls):
         cls.route = (ROOT / "apps/backend/routes/iteration4.py").read_text(encoding="utf-8").lower()
         cls.mobile = (ROOT / "apps/mobile/app/assessment.tsx").read_text(encoding="utf-8").lower()
-        cls.admin_model = (ROOT / "apps/dashboard/features/instruments/model.ts").read_text(encoding="utf-8").lower()
-        cls.admin_api = (ROOT / "apps/dashboard/features/instruments/api.ts").read_text(encoding="utf-8").lower()
-        cls.admin_detail = (ROOT / "apps/dashboard/features/instruments/InstrumentDetailPage.tsx").read_text(encoding="utf-8").lower()
 
     def test_client_cannot_supply_scores(self):
         self.assertIn('model_config = configdict(extra="forbid")', self.route)
@@ -97,15 +94,6 @@ class Iteration41StaticContracts(unittest.TestCase):
         self.assertNotIn("raw_score", self.mobile)
         self.assertNotIn("scaled_score", self.mobile)
         self.assertIn("hasil ini bukan diagnosis", self.mobile)
-
-    def test_standard_lock_and_custom_workflow(self):
-        # Editability is draft-only; standard definitions carry the protected notice instead of
-        # a free-form editor. Assert the stable names, not the minified expression shape.
-        self.assertIn("return detail.version.status==='draft'", self.admin_model)
-        self.assertIn("copy.detail.protected", self.admin_detail)
-        self.assertIn("/admin/assessment-instruments", self.admin_api)
-        self.assertIn("version.instrument_kind==='standard'", self.admin_detail)
-        self.assertIn("copy.detail.standardscoring", self.admin_detail)
 
 
 if __name__ == "__main__":

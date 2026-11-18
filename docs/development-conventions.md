@@ -34,7 +34,7 @@ See [docker-conventions.md](docker-conventions.md) and [postgresql-conventions.m
 docker compose up -d                                          # database
 cd apps/backend   && venv/bin/uvicorn main:app --reload       # FastAPI :8000
 cd apps/mobile    && npx expo start                           # Expo (mobile)
-npm run dashboard:dev                                         # Next.js admin :3000
+cd ../sajiwa-dashboard && npm run dev                         # separate Next.js repo :3000
 ```
 
 Seed dev accounts once the DB is up (idempotent; the first admin can't be created via the API),

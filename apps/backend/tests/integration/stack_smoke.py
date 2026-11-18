@@ -389,7 +389,7 @@ check("stream terminates with [DONE]", bool(frames) and frames[-1] == "[DONE]",
       frames[-1] if frames else None)
 check("tokens keep arriving after the first",
       first_ms is not None and total_ms and (total_ms - first_ms) > 1000,
-      f"first={first_ms:.0f}ms total={total_ms:.0f}ms")
+      f"first={first_ms}ms total={total_ms}ms")
 rows = sql("select count(*) from messages where session_id = %s", (f"stream-{SFX}",))
 check("streamed turn persisted after completion", rows[0][0] >= 2, rows)
 
@@ -419,6 +419,10 @@ CRISIS = [
     "saya berencana mengakhiri semuanya",
     "aku gak mau hidup lagi",
     "pengin bunuh diri",
+    "Aku pengen bundir sebelum hasil sidang keluar.",
+    "Aku ingin mengiris pergelangan tanganku malam ini.",
+    "Aku berniat menyakiti dosenku secara fisik besok.",
+    "Besok kalian tidak akan perlu mengurusku lagi, aku sudah menulis pesan perpisahan.",
 ]
 for msg in CRISIS:
     s, r = call("POST", "/guardrail/check", {"message": msg}, stu_tok)
@@ -433,6 +437,15 @@ check("crisis reply is the fixed hotline text",
 for msg in ("halo apa kabar", "aku capek banget sama tugas kuliah"):
     s, r = call("POST", "/guardrail/check", {"message": msg}, stu_tok)
     check(f"no false positive: {msg[:34]}", s == 200 and r.get("is_high_risk") is False, (s, r))
+
+print("== report to team (crisis sheet) ==")
+s, r = call("POST", "/chat/report", {"session_id": f"rep-{SFX}"}, stu_tok)
+check("report endpoint accepts the crisis-sheet request", s == 200 and r.get("status") == "reported", (s, r))
+report = sql("select triggered_input from guardrail_logs where session_id = %s and user_id = %s",
+             (f"rep-{SFX}", stu_id))
+check("report logged with the fixed text and no chat content",
+      bool(report) and report[0][0] == "[LAPORAN PENGGUNA] Minta dihubungi tim dari modal krisis",
+      report)
 
 print("== RLS isolation between two students ==")
 other_email = f"stu2{SFX}@example.com"

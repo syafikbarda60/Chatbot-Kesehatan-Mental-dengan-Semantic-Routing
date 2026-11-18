@@ -8,7 +8,6 @@ conversational_route = Route(
         "hai",
         "apa kabar?",
         "terima kasih",
-        "kamu siapa?",
         "bisa bantu saya?",
         "saya sedang sedih",
         "saya merasa kesepian",

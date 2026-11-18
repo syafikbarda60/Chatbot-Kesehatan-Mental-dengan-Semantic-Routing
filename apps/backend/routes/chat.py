@@ -87,7 +87,10 @@ def stream_chat_response(request: ChatRequest, user=Depends(get_current_user)):
                 yield _sse({"token": chunk})
         except Exception:
             # A truncated answer is not a turn: keep it out of history so the next request
-            # re-asks rather than continuing from half a reply.
+            # re-asks rather than continuing from half a reply. Log which route died: a
+            # bare traceback made a 60s client timeout look like any other failure.
+            logging.exception("chat generation failed (route=%s, session_id=%s)",
+                              route, request.session_id)
             yield _sse({"error": "generation_failed"})
             return
 

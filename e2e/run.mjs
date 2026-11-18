@@ -26,7 +26,7 @@ async function reachable(url) {
 }
 
 const missing = [];
-if (!(await reachable(`${DASHBOARD}/login`))) missing.push(`dashboard ${DASHBOARD} (npm run dashboard:dev)`);
+if (!(await reachable(`${DASHBOARD}/login`))) missing.push(`dashboard ${DASHBOARD} (run npm run dev in the separate sajiwa-dashboard repository)`);
 if (!(await reachable(`${API}/health`))) missing.push(`api ${API} (docker compose up -d, then venv/bin/uvicorn main:app)`);
 
 if (missing.length) {
