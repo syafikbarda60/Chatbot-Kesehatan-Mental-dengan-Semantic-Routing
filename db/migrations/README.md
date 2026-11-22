@@ -44,3 +44,7 @@ psql $env:DATABASE_OWNER_URL -tAc "select version from schema_migrations order b
 `012_dass21_batch.sql` backs the admin DASS-21 batch editor: a partial unique index allows one open draft per instrument (skipped with a notice if old data already has two), and `publish_approved_dass21_version()` (`SECURITY DEFINER`) lets a counselor's approval of the standard DASS-21 publish it, which RLS would otherwise forbid. Apply it after `011_notifications.sql`.
 
 `sajiwa_app` is the canonical and only runtime role; every migration grants its new objects to it. A grant to a nonexistent role aborts the migration transaction, so `db/init/02_auth.sql` creates it first.
+
+`013_token_revocation.sql` adds `revoked_tokens`, which `POST /auth/logout` writes and `get_current_user` checks. Apply it after `012_dass21_batch.sql`.
+
+`015_account_soft_delete.sql` adds `users.deleted_at`. `DELETE /accounts/{id}` anonymises and marks an account that counseling history still references instead of deleting it, and `get_current_user` and the account list skip such rows. It depends only on `013_token_revocation.sql`.
