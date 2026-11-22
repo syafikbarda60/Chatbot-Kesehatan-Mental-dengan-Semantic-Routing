@@ -71,7 +71,7 @@ def get_current_user(
     # The same lookup also refuses a token revoked by /auth/logout (MASVS-AUTH-1).
     rows = query(
         "select role, exists(select 1 from revoked_tokens where jti = %s) as revoked "
-        "from users where user_id = %s",
+        "from users where user_id = %s and deleted_at is null",
         (jti, user_id),
         user_id=user_id,
     )
