@@ -32,9 +32,15 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'Migrasi gagal, lihat log di atas.' -Foreg
 if (-not (Listening 11434)) {
   $ollama = (Get-Command ollama -ErrorAction SilentlyContinue).Source
   if (-not $ollama) { $ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" }
+  # Keep the model loaded: by default Ollama unloads it after 5 idle minutes and the next chat waits for the reload
+  $env:OLLAMA_KEEP_ALIVE = '24h'
   if (Test-Path $ollama) { Start-Process $ollama 'serve' -WindowStyle Hidden }
   else { Write-Host 'Ollama tidak ditemukan: aplikasi jalan, tapi chatbot tidak bisa membalas.' -ForegroundColor Yellow }
 }
+# The backend embeds the router's utterances at import and exits if Ollama is not up yet
+$deadline = (Get-Date).AddSeconds(60)
+while (-not (Listening 11434) -and (Get-Date) -lt $deadline) { Start-Sleep 1 }
+if (-not (Listening 11434)) { Write-Host 'Ollama belum menjawab di port 11434: backend akan gagal start.' -ForegroundColor Red }
 
 # 3. The laptop's Wi-Fi address, which the phone uses to reach the backend
 $ip = @(Get-NetIPConfiguration | Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq 'Up' })[0].IPv4Address.IPAddress
@@ -42,6 +48,12 @@ if (-not $ip) { $ip = 'localhost'; Write-Host 'Tidak terhubung ke jaringan: HP t
 $envFile = "$root\apps\mobile\.env"
 $line = "EXPO_PUBLIC_API_URL=http://${ip}:8000"
 $text = if (Test-Path $envFile) { [IO.File]::ReadAllText($envFile) } else { '' }
+# Network changed (e.g. switched to the phone hotspot): a running Expo still serves the old address, so restart it
+if ($text -notmatch [regex]::Escape($line) -and (Listening 8081)) {
+  Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }
+  Start-Sleep 2
+  Write-Host "Alamat jaringan berubah ke $ip, Expo dijalankan ulang." -ForegroundColor Yellow
+}
 if ($text -match '(?m)^EXPO_PUBLIC_API_URL=') { $text = $text -replace '(?m)^EXPO_PUBLIC_API_URL=[^\r\n]*', $line }
 else { $text = $text.TrimEnd() + "`r`n$line`r`n" }
 [IO.File]::WriteAllText($envFile, $text)
@@ -54,8 +66,10 @@ if (-not (Listening 8000)) {
   Window 'Sajiwa backend' "$root\apps\backend" "& '$py' -m uvicorn main:app --host 0.0.0.0 --port 8000"
 }
 
-# 5. Dashboard
-if (-not (Listening 3000)) { Window 'Sajiwa dashboard' "$root\apps\dashboard" 'npm run dev' }
+# 5. Dashboard: its own repository now (melakhaa/sajiwa-dashboard), cloned next to this one
+$dash = Join-Path (Split-Path $root -Parent) 'sajiwa-dashboard'
+if (-not (Test-Path "$dash\package.json")) { Write-Host "Dashboard tidak ditemukan di $dash (git clone https://github.com/melakhaa/sajiwa-dashboard.git di sebelah folder ini)." -ForegroundColor Yellow }
+elseif (-not (Listening 3000)) { Window 'Sajiwa dashboard' $dash 'npm run dev' }
 
 # 6. Expo; --clear so the app picks up the address written above
 if (-not (Listening 8081)) { Window 'Sajiwa Expo' "$root\apps\mobile" 'npx expo start --lan --clear' }
