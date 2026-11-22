@@ -6,7 +6,7 @@ import os, uuid, secrets, time
 
 import bcrypt
 from dotenv import load_dotenv
-from psycopg.errors import UniqueViolation
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
 from auth import require_role, get_current_user, create_token, EXPIRES_IN
 from core.db import db, query
@@ -256,7 +256,7 @@ def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
             "sap.academic_unit_id,au.name as academic_unit_name,au.unit_type from users u " +
             "left join student_academic_profiles sap on sap.user_id=u.user_id " +
             "left join faculties f on f.faculty_id=sap.faculty_id " +
-            "left join academic_units au on au.academic_unit_id=sap.academic_unit_id order by u.created_at desc",
+            "left join academic_units au on au.academic_unit_id=sap.academic_unit_id where u.deleted_at is null order by u.created_at desc",
             user_id=admin.id,
         )
         return {"users": rows, "total": len(rows)}
@@ -331,14 +331,23 @@ def update_account(
 def delete_account(user_id: str, admin=Depends(require_role("admin", "pemangku_jabatan"))):
     try:
         rows = query(
-            "delete from users where user_id = %s returning user_id",
+            "delete from users where user_id = %s and deleted_at is null returning user_id",
             (user_id,),
             user_id=admin.id,
         )
-        if not rows:
-            raise HTTPException(status_code=404, detail="User tidak ditemukan")
-        return {"message": "Akun berhasil dihapus", "user_id": user_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Gagal menghapus akun: {e}")
+    except ForeignKeyViolation:
+        # C500 F-06: counseling history references this account. Keep the history, drop the
+        # identity: anonymise the row and mark it deleted so login and old tokens stop working.
+        rows = query(
+            "update users set deleted_at = now(), name = 'Akun dihapus', nim = null, "
+            "email = 'dihapus+' || user_id || '@sajiwa.invalid' "
+            "where user_id = %s and deleted_at is null returning user_id",
+            (user_id,),
+            user_id=admin.id,
+        )
+    except Exception:
+        # The driver message named tables and constraints; the client needs none of that
+        raise HTTPException(status_code=400, detail="Gagal menghapus akun")
+    if not rows:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    return {"message": "Akun berhasil dihapus", "user_id": user_id}
