@@ -1,12 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal
 from datetime import datetime, timezone
-import os, uuid, secrets
+import os, uuid, secrets, time
 
 import bcrypt
 from dotenv import load_dotenv
-from psycopg.errors import UniqueViolation
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
 from auth import require_role, get_current_user, create_token, EXPIRES_IN
 from core.db import db, query
@@ -25,23 +25,61 @@ def _verify(pw: str, hashed: Optional[str]) -> bool:
     return bool(hashed) and bcrypt.checkpw(pw.encode(), hashed.encode())
 
 
+# MASVS-AUTH-1: brute-force guard for passwords and the 6-digit reset OTP.
+# ponytail: in-process memory, so each worker counts on its own and a restart forgets;
+# move it to Redis or the database once the backend runs with several workers.
+MAX_FAILS = 5
+FAIL_WINDOW_S = 15 * 60
+_fails: dict[tuple, list[float]] = {}
+
+
+def _check_throttle(key: tuple) -> None:
+    now = time.monotonic()
+    recent = [t for t in _fails.get(key, ()) if now - t < FAIL_WINDOW_S]
+    if recent:
+        _fails[key] = recent
+    else:
+        _fails.pop(key, None)
+    if len(recent) >= MAX_FAILS:
+        wait = int(FAIL_WINDOW_S - (now - recent[0])) + 1
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Terlalu banyak percobaan. Coba lagi dalam {wait // 60 + 1} menit.",
+            headers={"Retry-After": str(wait)},
+        )
+
+
+def _record_fail(key: tuple) -> None:
+    _fails.setdefault(key, []).append(time.monotonic())
+
+
+def _client_key(http: Request, kind: str, email: str) -> tuple:
+    return (kind, http.client.host if http.client else "", email.strip().lower())
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
 
+# MASVS-AUTH-1: same 8-character floor the app's register screen enforces (a 1-character password was
+# accepted). MASVS-CODE-4: name and nim match users.name varchar(100) / users.nim varchar(14), which
+# used to overflow into HTTP 500.
+Password = Field(min_length=8, max_length=128)
+
+
 class CreateAccountRequest(BaseModel):
     email: EmailStr
-    password: str
-    name: str
+    password: str = Password
+    name: str = Field(min_length=1, max_length=100)
     role: Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"] = "mahasiswa"
-    nim: Optional[str] = None
+    nim: Optional[str] = Field(default=None, max_length=14)
 
 
 class UpdateAccountRequest(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     role: Optional[Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"]] = None
-    nim: Optional[str] = None
+    nim: Optional[str] = Field(default=None, max_length=14)
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
@@ -49,7 +87,7 @@ class ResetPasswordRequest(BaseModel):
 class ConfirmPasswordResetRequest(BaseModel):
     email: EmailStr
     otp: str
-    new_password: str
+    new_password: str = Password
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
@@ -78,7 +116,9 @@ def register(request: CreateAccountRequest):
 
 
 @router.post("/auth/login")
-def login(request: LoginRequest):
+def login(request: LoginRequest, http: Request):
+    key = _client_key(http, "login", request.email)
+    _check_throttle(key)
     rows = query(
         "select user_id, email, name, nim, role, password_hash "
         "from auth_lookup(%s)",
@@ -87,11 +127,13 @@ def login(request: LoginRequest):
     user = rows[0] if rows else None
 
     if not user or not _verify(request.password, user["password_hash"]):
+        _record_fail(key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password salah",
         )
 
+    _fails.pop(key, None)
     user_id = str(user["user_id"])
     token = create_token(user_id, user["email"])
 
@@ -147,7 +189,9 @@ def request_password_reset(request: ResetPasswordRequest, background: Background
 
 
 @router.post("/auth/reset-password/confirm")
-def confirm_password_reset(request: ConfirmPasswordResetRequest):
+def confirm_password_reset(request: ConfirmPasswordResetRequest, http: Request):
+    key = _client_key(http, "otp", request.email)
+    _check_throttle(key)
     rows = query(
         "select otp_hash, expires_at, used from password_resets where email = %s",
         (request.email,),
@@ -159,6 +203,7 @@ def confirm_password_reset(request: ConfirmPasswordResetRequest):
         or rec["expires_at"] < datetime.now(timezone.utc)
         or not _verify(request.otp, rec["otp_hash"])
     ):
+        _record_fail(key)
         raise HTTPException(status_code=400, detail=RESET_REJECTED)
 
     users = query("select user_id from auth_lookup(%s)", (request.email,))
@@ -211,7 +256,7 @@ def get_account_list(admin=Depends(require_role("admin", "pemangku_jabatan"))):
             "sap.academic_unit_id,au.name as academic_unit_name,au.unit_type from users u " +
             "left join student_academic_profiles sap on sap.user_id=u.user_id " +
             "left join faculties f on f.faculty_id=sap.faculty_id " +
-            "left join academic_units au on au.academic_unit_id=sap.academic_unit_id order by u.created_at desc",
+            "left join academic_units au on au.academic_unit_id=sap.academic_unit_id where u.deleted_at is null order by u.created_at desc",
             user_id=admin.id,
         )
         return {"users": rows, "total": len(rows)}
@@ -286,14 +331,23 @@ def update_account(
 def delete_account(user_id: str, admin=Depends(require_role("admin", "pemangku_jabatan"))):
     try:
         rows = query(
-            "delete from users where user_id = %s returning user_id",
+            "delete from users where user_id = %s and deleted_at is null returning user_id",
             (user_id,),
             user_id=admin.id,
         )
-        if not rows:
-            raise HTTPException(status_code=404, detail="User tidak ditemukan")
-        return {"message": "Akun berhasil dihapus", "user_id": user_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Gagal menghapus akun: {e}")
+    except ForeignKeyViolation:
+        # C500 F-06: counseling history references this account. Keep the history, drop the
+        # identity: anonymise the row and mark it deleted so login and old tokens stop working.
+        rows = query(
+            "update users set deleted_at = now(), name = 'Akun dihapus', nim = null, "
+            "email = 'dihapus+' || user_id || '@sajiwa.invalid' "
+            "where user_id = %s and deleted_at is null returning user_id",
+            (user_id,),
+            user_id=admin.id,
+        )
+    except Exception:
+        # The driver message named tables and constraints; the client needs none of that
+        raise HTTPException(status_code=400, detail="Gagal menghapus akun")
+    if not rows:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    return {"message": "Akun berhasil dihapus", "user_id": user_id}

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from psycopg.types.json import Jsonb
 
@@ -25,17 +25,19 @@ def _calc_severity(score: int) -> str:
 
 class AnswerItem(BaseModel):
     question_id: int
-    score: int
+    # MASVS-CODE-4: PHQ-9, GAD-7 and SRQ answers score 0..3; a client-sent 999 was stored as is
+    score: int = Field(ge=0, le=3)
 
 
 class AssessmentRequest(BaseModel):
-    answers: List[AnswerItem]
+    answers: List[AnswerItem] = Field(min_length=1, max_length=50)
     instrument_type: Literal["PHQ-9", "GAD-7", "SRQ", "custom"] = "PHQ-9"
     session_id: Optional[str] = None
 
 
 class NotifyRiskRequest(BaseModel):
-    user_id: str
+    # Ignored: the signal is always filed for the caller (MASVS-AUTH-1). Kept so old clients still validate.
+    user_id: Optional[str] = None
     assessment_id: str
     score: int
     session_id: Optional[str] = None
@@ -79,13 +81,14 @@ def submit_self_assessment(
 
 
 @router.post("/notify-risk")
-def send_high_risk_notification(request: NotifyRiskRequest):
+def send_high_risk_notification(request: NotifyRiskRequest, user=Depends(get_current_user)):
+    # MASVS-AUTH-1: without a token anyone could raise a crisis signal for any user_id
     _log_high_risk(
-        user_id=request.user_id,
+        user_id=str(user.id),
         assessment_id=request.assessment_id,
         session_id=request.session_id,
     )
-    return {"status": "notified", "user_id": request.user_id}
+    return {"status": "notified", "user_id": str(user.id)}
 
 
 @router.get("/history")

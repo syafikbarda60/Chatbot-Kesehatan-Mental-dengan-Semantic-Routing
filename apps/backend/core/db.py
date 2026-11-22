@@ -11,7 +11,8 @@ _pool = ConnectionPool(
     os.environ["DATABASE_URL"],
     kwargs={"row_factory": dict_row},
     min_size=1,
-    max_size=10,
+    # Per process: with N gunicorn workers the total is N x this, keep it under max_connections
+    max_size=int(os.getenv("DB_POOL_MAX", "10")),
     open=True,
 )
 
