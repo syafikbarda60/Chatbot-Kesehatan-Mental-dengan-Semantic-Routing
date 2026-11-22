@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { MyCounselingRequest } from '@prototype/api-client';
-import { nearestSession } from './upcomingSession.ts';
+import { nearestSession, sessionNotes } from './upcomingSession.ts';
 
 const NOW = Date.parse('2026-10-06T00:30:00Z'); // 07.30 WIB, Selasa
 const at = (hoursFromNow: number) => new Date(NOW + hoursFromNow * 3_600_000).toISOString();
@@ -88,4 +88,14 @@ test('a session that ended before 07.00 WIB is gone even though its UTC date is 
 
 test('a request with no picked time has nothing to show', () => {
   assert.equal(nearestSession([request()], NOW), undefined);
+});
+
+test('session notes: only sessions with a report the student may read, newest first', () => {
+  const older = { ...booked(-72, 'completed'), counseling_appointment_id: 'a-old', report_summary: 'Lama', report_follow_up: null };
+  const newer = { ...booked(-24, 'completed', 'Bu Sari'), counseling_appointment_id: 'a-new', report_summary: 'Baru', report_follow_up: 'Tidur cukup' };
+  const unreported = { ...booked(-10, 'completed'), counseling_appointment_id: 'a-none' };
+  assert.deepEqual(sessionNotes([older, unreported, newer]), [
+    { id: 'a-new', start: at(-24), counselor: 'Bu Sari', summary: 'Baru', followUp: 'Tidur cukup' },
+    { id: 'a-old', start: at(-72), counselor: 'Pak Budi', summary: 'Lama', followUp: null },
+  ]);
 });

@@ -1,0 +1,142 @@
+{
+  "note": "Regression from 2026-11-17 C500 evaluation, now used for remediation; NOT unseen evaluation. Original results and SHA256 recorded in docs/rag-semantic-routing-testing.md.",
+  "source": "Buku Depresi REVISI FINAL.docx",
+  "citation": "Petunjuk Teknis Layanan Depresi (Kemenkes RI, 2021)",
+  "k": 5,
+  "min_similarity": 0.3,
+  "in_domain": [
+    {
+      "query": "Bagaimana pedoman menentukan apakah seseorang mengalami episode depresi?",
+      "groups": [
+        [
+          "kriteria diagnosis depresi"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana pemeriksa mengetahui bahwa depresi mengganggu kegiatan sehari-hari?",
+      "groups": [
+        [
+          "menilai adanya gangguan fungsi"
+        ]
+      ]
+    },
+    {
+      "query": "Apa tindak lanjut jika pemeriksaan menemukan mania atau gejala psikotik?",
+      "groups": [
+        [
+          "psikotik dan mania",
+          "dirujuk"
+        ]
+      ]
+    },
+    {
+      "query": "Keluhan badan apa yang mungkin dialami orang dengan depresi?",
+      "groups": [
+        [
+          "gejala somatik"
+        ]
+      ]
+    },
+    {
+      "query": "Apa tugas kader di masyarakat dalam layanan kesehatan jiwa?",
+      "groups": [
+        [
+          "kader kesehatan jiwa"
+        ]
+      ]
+    },
+    {
+      "query": "Apa peran pendekatan kognitif dan perilaku untuk menangani depresi?",
+      "groups": [
+        [
+          "terapi kognitif-perilaku"
+        ]
+      ]
+    },
+    {
+      "query": "Apa langkah agar depresi yang sudah membaik tidak kambuh?",
+      "groups": [
+        [
+          "mengurangi risiko kekambuhan"
+        ]
+      ]
+    },
+    {
+      "query": "Venlafaksin dan duloksetin termasuk golongan antidepresan yang mana?",
+      "groups": [
+        [
+          "venlafaksin",
+          "duloksetin"
+        ]
+      ]
+    },
+    {
+      "query": "Apakah fluoksetin termasuk obat depresi yang ada di layanan puskesmas?",
+      "groups": [
+        [
+          "puskesmas",
+          "fluoksetin"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana kegiatan promotif kesehatan jiwa dilakukan pada kelompok remaja?",
+      "groups": [
+        [
+          "upaya promotif",
+          "remaja"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana keluarga dilibatkan dalam perawatan seseorang dengan depresi?",
+      "groups": [
+        [
+          "penatalaksanaan penderita",
+          "keluarga"
+        ]
+      ]
+    },
+    {
+      "query": "Apa kaitan stresor psikososial dengan timbulnya depresi?",
+      "groups": [
+        [
+          "stresor psikososial"
+        ]
+      ]
+    },
+    {
+      "query": "Mengapa pasien depresi harus dipantau secara teratur?",
+      "groups": [
+        [
+          "pemantauan reguler"
+        ]
+      ]
+    },
+    {
+      "query": "Apa sasaran kegiatan promosi kesehatan jiwa?",
+      "groups": [
+        [
+          "promosi kesehatan jiwa"
+        ]
+      ]
+    },
+    {
+      "query": "Apa pertimbangan penyakit penyerta saat merawat lansia dengan depresi?",
+      "groups": [
+        [
+          "lansia",
+          "penyakit penyerta"
+        ]
+      ]
+    }
+  ],
+  "out_of_domain": [
+    "Bagaimana mengganti ban sepeda yang bocor?",
+    "Berapa luas permukaan planet Mars?",
+    "Tuliskan langkah membuat kue nastar.",
+    "Bagaimana mengatur indeks pada database MySQL?",
+    "Siapa pencipta permainan catur?"
+  ]
+}

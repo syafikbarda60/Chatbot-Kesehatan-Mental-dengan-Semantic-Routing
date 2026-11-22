@@ -108,6 +108,19 @@ class ChatStreamTests(unittest.TestCase):
         # client replace a good answer with its "aku sedang tidak bisa dihubungi" fallback.
         self.assertNotIn('"error"', body)
 
+    def test_generation_error_sends_an_error_frame_and_no_done(self):
+        def broken(*args, **kwargs):
+            raise RuntimeError("ollama read timeout")
+
+        with unittest.mock.patch.object(chat_route, "chat_stream", broken):
+            with self.assertLogs(level="ERROR"):
+                body = self._post().text
+        # The client shows its failure fallback on `error`; a `[DONE]` after it would tell
+        # the client the answer completed normally.
+        self.assertIn('"error": "generation_failed"', body)
+        self.assertNotIn("[DONE]", body)
+        self.assertNotIn('"token"', body)
+
     def test_no_session_id_skips_persistence_entirely(self):
         def boom(*args):
             raise AssertionError("must not persist without a session_id")

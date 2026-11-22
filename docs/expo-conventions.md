@@ -4,7 +4,7 @@ The student application is TypeScript on **Expo SDK 54** with **expo-router**:
 
 - `apps/mobile` — Expo React Native 0.81, student app (`newArchEnabled: false`).
 
-The administrator dashboard at `apps/dashboard` is Next.js and does not follow Expo bundling conventions.
+The administrator dashboard in the separate `sajiwa-dashboard` repository is Next.js and does not follow Expo bundling conventions.
 
 Core React Native rules live in [react-native-conventions.md](react-native-conventions.md); routing in
 [expo-router-conventions.md](expo-router-conventions.md).
@@ -20,6 +20,15 @@ Core React Native rules live in [react-native-conventions.md](react-native-conve
 | `expo-linear-gradient`, `expo-blur` | visual effects |
 | `@expo/vector-icons` | icons |
 | `expo-haptics`, `expo-linking` | haptics, deep links |
+
+## Web build
+
+`npm run web` runs the same React Native screens through `react-native-web`. It is a
+manual verification surface against the backend, not a release target and not a test tier.
+Guard APIs that exist only on native (for example `Platform.constants` in
+`components/NotificationSettings.tsx`) so a web check can render the app instead of
+crashing at import. Set `EXPO_PUBLIC_API_URL` as for native, using an origin the browser
+can reach.
 
 ## `app.json` config
 

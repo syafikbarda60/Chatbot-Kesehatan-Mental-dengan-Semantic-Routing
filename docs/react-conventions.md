@@ -1,6 +1,6 @@
 # React conventions
 
-**React 19** is used in both frontend apps (and `react-dom` for the Next.js dashboard). Function components + hooks only.
+**React 19** is used in the mobile app and the separate `sajiwa-dashboard` repository. This document covers mobile/shared React; dashboard rules live with that repository. Function components + hooks only.
 
 ## Conventions
 
@@ -13,15 +13,15 @@
 - Global state via **React Context**, not a state library: `ThemeProvider` / `ThemeContext` in
   `@prototype/ui-shared`; consume with the exported hook.
 - Effects that load persisted data run once on mount (see `useAuth`); always clean up subscriptions.
-- Use `"use client"` only for dashboard components that require browser APIs, state, effects, or event handlers.
-- The mobile application remains Expo Router; dashboard routes use the Next.js App Router.
+- The mobile application uses Expo Router; dashboard routes use the Next.js App Router in its own repository.
 
 ## Component composition
 
 - Presentational components in `components/`; feature folders (`components/chat/`, `components/home/`)
   re-export via `index.ts`.
-- Mobile screens own data-fetching (via `@prototype/api-client`); dashboard features fetch through
-  `apps/dashboard/lib/api/client.ts`. Pass props down.
+- Mobile screens own data-fetching via `@prototype/api-client`; pass props down.
 - Prefer composition/props over inheritance or render-prop gymnastics; no class components.
+
+Dashboard React conventions: [sajiwa-dashboard/docs/react-conventions.md](https://github.com/melakhaa/sajiwa-dashboard/blob/main/docs/react-conventions.md).
 
 Related: [react-native-conventions.md](react-native-conventions.md), [react-native-ui-conventions.md](react-native-ui-conventions.md).

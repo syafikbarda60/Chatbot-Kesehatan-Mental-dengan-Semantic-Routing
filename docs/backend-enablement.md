@@ -34,6 +34,23 @@ read through its latest review: `published` = APPROVED, a `pending` review = PEN
 - Counselors decide through the existing `/counselor/instrument-reviews/...` routes; for the
   DASS-21 an approval publishes the version (`publish_approved_dass21_version()`, migration 012).
 
+## Attendance and session reports
+
+After a session has started, the counselor who holds it, or an admin, records attendance and a
+two-part report (`routes/session_reports.py`, migration 014):
+
+- `PUT /counseling/sessions/{id}/attendance` `{attended}` — sets the appointment (and its request)
+  to `completed` / `no_show` through `record_counseling_attendance()`, logging an appointment event.
+  404 for another counselor's session, 409 before the start or for a cancelled one.
+- `GET /counseling/sessions/{id}` — the session with both report parts.
+- `PUT /counseling/sessions/{id}/report` `{student:{summary,follow_up}, management:{topic,risk_level,follow_up,notes}}`
+  — attended sessions only (409 otherwise); both parts are upserted.
+- `GET /admin/counseling/session-reports?date_from&date_to[&counselor_id]` — every started session
+  with attendance and the management part, for the admin page `/counseling/reports`.
+- Students read only the student part, as `report_summary` / `report_follow_up` on
+  `GET /counseling/requests` once the session is marked attended. The management part lives in its
+  own table that RLS never shows a student.
+
 ## Student support & academic structure
 
 - `PUT /admin/students/{id}/profile` updates identity, academic assignment, and the separately

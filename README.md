@@ -27,7 +27,7 @@
 
 ### Technical Highlights
 
-- **Monorepo Architecture**: Shared logic and UI components across web and mobile platforms.
+- **Separate Frontends**: Mobile and the standalone dashboard communicate through the same FastAPI backend.
 - **RAG Integration**: Retrieval-Augmented Generation for accurate mental health information.
 - **Hybrid Storage**: Local storage wrappers for seamless cross-platform data persistence.
 - **Semantic Routing**: Intent-based message routing for guardrails and specialized responses.
@@ -37,7 +37,7 @@
 ### Monorepo Structure
 
 - **`apps/mobile`**: Expo React Native application.
-- **`apps/dashboard`**: Next.js administrator dashboard.
+- **[sajiwa-dashboard](https://github.com/melakhaa/sajiwa-dashboard)**: Next.js administrator/counselor dashboard (separate repository).
 - **`apps/backend`**: FastAPI (Python 3.12) services.
 - **`packages/api-client`**: Shared TypeScript SDK for API communication.
 - **`packages/ui-shared`**: Shared hooks, context, and Sajiwa Design System.
@@ -117,11 +117,20 @@ npx expo start
 
 ### Start Dashboard
 ```bash
-# From the repository root
-npm run dashboard:dev
+# In a separate checkout (not an npm workspace here)
+cd ../sajiwa-dashboard
+npm ci
+cp .env.example .env.local
+npm run dev
 ```
 
-Set `NEXT_PUBLIC_API_URL` in `apps/dashboard/.env.local` to the FastAPI origin. For synthetic local development only, `NEXT_PUBLIC_PREVIEW_MODE=true` enables preview data when `NODE_ENV=development`.
+Clone [sajiwa-dashboard](https://github.com/melakhaa/sajiwa-dashboard) alongside this repository first.
+Set its `NEXT_PUBLIC_API_URL` in `.env.local` and mobile's `EXPO_PUBLIC_API_URL` in
+`apps/mobile/.env` to the same FastAPI environment. A physical phone needs a reachable LAN
+address, not `localhost`. Set backend `ALLOWED_ORIGINS` to the actual browser origins.
+The shared backend/database and staff-only `/realtime` notices keep both apps connected;
+mobile does not call the dashboard server directly. Preview mode uses synthetic data and
+must be off for communication checks.
 
 ## Project Structure
 
@@ -129,7 +138,6 @@ Set `NEXT_PUBLIC_API_URL` in `apps/dashboard/.env.local` to the FastAPI origin. 
 Therapy-Chatbot/
 ├── apps/
 │   ├── mobile/           # Expo Mobile App
-│   ├── dashboard/        # Next.js Admin Dashboard
 │   └── backend/          # FastAPI Python Server (routes/, services/, tests/)
 ├── packages/
 │   ├── api-client/       # Shared Fetch Wrappers
@@ -147,19 +155,17 @@ Therapy-Chatbot/
 | Command | Description |
 |---------|-------------|
 | `npm install` | Install all workspace dependencies |
-| `npm run dashboard:dev` | Run the Next.js dashboard locally |
-| `npm run dashboard:typecheck` | Type-check the dashboard |
-| `npm run dashboard:lint` | Lint the dashboard |
-| `npm run dashboard:test` | Run dashboard tests |
 | `npm test` | Unit tier: every workspace + backend, no stack required |
 | `npm run test:integration` | Integration tier: live API, Postgres, RLS self-check |
 | `npm run test:e2e` | E2E tier: betterwright drives the dashboard in a browser |
-| `npm run dashboard:build` | Build the production dashboard |
-| `npm run dashboard:start` | Serve the production dashboard |
 | `docker compose up -d` | Start local PostgreSQL + pgAdmin |
 | `docker compose down` | Stop local services |
 | `docker compose down -v` | Stop and wipe local data (re-applies `db/init`) |
 | `venv/bin/uvicorn main:app --reload` | Run the backend (from `apps/backend`) |
+
+Dashboard commands (`npm run dev`, `npm test`, `npm run typecheck`, `npm run lint`,
+`npm run build`, `npm start`) run in its own repository. Root browser tests still target
+that dashboard at `http://localhost:3000` and this backend at `http://localhost:8000`.
 
 Tests run in three tiers. `npm test` needs nothing running and is the one command that must
 always be green; the other two skip loudly when their stack is down. **Write the test first** —

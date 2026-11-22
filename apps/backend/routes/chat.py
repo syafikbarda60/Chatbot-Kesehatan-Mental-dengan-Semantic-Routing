@@ -26,8 +26,9 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     # No user_id: identity always comes from the JWT (`get_current_user`), never the body.
 
+# MASVS-AUTH-1: both run the embedding model; unauthenticated they were free compute for anyone.
 @guardrail_router.post("/check")
-def check_safety_guardrail(request: ChatRequest):
+def check_safety_guardrail(request: ChatRequest, user=Depends(get_current_user)):
     result = semantic_router(request.message)
     is_high_risk = result.name == "guardrail"
     return {
@@ -37,7 +38,7 @@ def check_safety_guardrail(request: ChatRequest):
     }
 
 @router_router.post("/intent")
-def route_semantic_intent(request: ChatRequest):
+def route_semantic_intent(request: ChatRequest, user=Depends(get_current_user)):
     result = semantic_router(request.message)
     return {"route": result.name or "conversational"}
 
@@ -87,7 +88,10 @@ def stream_chat_response(request: ChatRequest, user=Depends(get_current_user)):
                 yield _sse({"token": chunk})
         except Exception:
             # A truncated answer is not a turn: keep it out of history so the next request
-            # re-asks rather than continuing from half a reply.
+            # re-asks rather than continuing from half a reply. Log which route died: a
+            # bare traceback made a 60s client timeout look like any other failure.
+            logging.exception("chat generation failed (route=%s, session_id=%s)",
+                              route, request.session_id)
             yield _sse({"error": "generation_failed"})
             return
 

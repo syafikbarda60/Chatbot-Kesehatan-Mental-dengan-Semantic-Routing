@@ -1,17 +1,31 @@
 from datetime import date, datetime, time
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 
+from cryptography.fernet import InvalidToken
+
 from auth import get_current_user
 from core.db import query
+from core.security import decrypt_text, encrypt_text
 
 router = APIRouter(prefix="/journal", tags=["Journal"])
 
 
 # MASVS-CODE-4: bound what a client may send; a 1 MB entry used to be stored as is.
 JOURNAL_MAX_CHARS = 10_000
+
+
+def _plain(row):
+    # Journal text is stored Fernet-encrypted like chat messages (C500 F-04).
+    # ponytail: rows written before encryption are returned as is; scripts/encrypt_journals.py converts them.
+    try:
+        row["content"] = decrypt_text(row["content"])
+    except InvalidToken:
+        pass
+    return row
 
 
 class SaveJournalRequest(BaseModel):
@@ -32,14 +46,14 @@ def save_journal(request: SaveJournalRequest, user=Depends(get_current_user)):
     rows = query(
         "insert into journals (user_id, content, mood) values (%s, %s, %s) "
         "returning journal_id, content, mood, created_at, updated_at",
-        (user.id, request.content.strip(), request.mood),
+        (user.id, encrypt_text(request.content.strip()), request.mood),
         user_id=user.id,
     )
 
     if not rows:
         raise HTTPException(status_code=500, detail="Gagal menyimpan jurnal")
 
-    return {"journal": rows[0], "message": "Jurnal berhasil disimpan"}
+    return {"journal": _plain(rows[0]), "message": "Jurnal berhasil disimpan"}
 
 
 @router.get("")
@@ -55,7 +69,7 @@ def get_journals(
         (user.id, limit, offset),
         user_id=user.id,
     )
-    return {"journals": journals, "total": len(journals)}
+    return {"journals": [_plain(j) for j in journals], "total": len(journals)}
 
 
 @router.get("/today")
@@ -68,12 +82,12 @@ def get_today_journal(user=Depends(get_current_user)):
         (user.id, datetime.combine(date.today(), time.min).astimezone().isoformat()),
         user_id=user.id,
     )
-    return {"journal": rows[0] if rows else None}
+    return {"journal": _plain(rows[0]) if rows else None}
 
 
 @router.patch("/{journal_id}")
 def update_journal(
-    journal_id: str,
+    journal_id: UUID,  # MASVS-CODE-4: a non-UUID id used to reach Postgres and return 500
     request: UpdateJournalRequest,
     user=Depends(get_current_user),
 ):
@@ -85,7 +99,7 @@ def update_journal(
         "where journal_id = %s and user_id = %s "
         "returning journal_id, content, mood, created_at, updated_at",
         (
-            request.content.strip() if request.content is not None else None,
+            encrypt_text(request.content.strip()) if request.content is not None else None,
             request.mood,
             journal_id,
             user.id,
@@ -95,11 +109,11 @@ def update_journal(
 
     if not rows:
         raise HTTPException(status_code=404, detail="Jurnal tidak ditemukan")
-    return {"journal": rows[0], "message": "Jurnal diperbarui"}
+    return {"journal": _plain(rows[0]), "message": "Jurnal diperbarui"}
 
 
 @router.delete("/{journal_id}", status_code=status.HTTP_200_OK)
-def delete_journal(journal_id: str, user=Depends(get_current_user)):
+def delete_journal(journal_id: UUID, user=Depends(get_current_user)):
     rows = query(
         "delete from journals where journal_id = %s and user_id = %s returning journal_id",
         (journal_id, user.id),

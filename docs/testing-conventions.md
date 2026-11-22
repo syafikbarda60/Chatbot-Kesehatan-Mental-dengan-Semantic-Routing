@@ -35,20 +35,22 @@ to one of them, and a new seam gets added here (with its trade-off) before the t
 | FastAPI route contract (`/auth`, `/assessment`, `/journal`, `/chat`, `/booking`) | unit (stubbed `core.db`) | request/response shape, role gates, validation | real SQL, triggers, RLS |
 | `core/dass21.py` — `score_dass21`, `classify_dass21`, `normalize_subscales` | unit | scoring, bands, category mapping, whole-subscale variants | persistence, wiring |
 | `/realtime` WebSocket (`routes/realtime.py`), `publish()` standing in for the DB listener | unit (stubbed `core.db`) | token-in-first-message handshake, staff-only gate, table→area map, expiry close | the LISTEN thread, the triggers |
-| `lib/realtime/notice.ts` (dashboard) | unit | which socket messages are trusted, reconnect pacing, refused sessions not retried | socket lifecycle, page refetch |
 | `core/mailer.py` — `send_reset_otp` (smtplib replaced) | unit | the reset mail's recipient and content, the SMTP handshake, the dev log fallback, a failure that never logs the code | real delivery, spam filtering |
 | `services/chatbot/guardrail.py` — `is_crisis`, `strip_profanity` | unit | deterministic crisis detection | model tone and routing |
-| `services/chatbot/rag.py` — `build_messages`, `_source_label` | unit | the citation reaching the prompt, filename fallback for an uncited chunk | retrieval quality, whether the model obeys the instruction |
+| `services/chatbot/rag.py` — `build_messages`, `_source_label`, `retrieve_docs` | unit (stubbed `query` and embedding client) | citation and filename fallback, retrieved text kept out of the system role, neighbour slices | real similarity, whether the model obeys the instruction |
+| `services/chatbot/core.py` — `semantic_router`, `chat_stream` | unit (stubbed `core.db`, encoder and `llm`) | crisis priority even with supplied routes, fixed policy/provenance/no-context replies, ordinary requests still reaching generation | real embedding accuracy, adversarial model behavior |
+| `scripts/embed.py` — `chunk_text`, `extract_text_docx` | unit (no DB, import must stay side-effect free) | the 500/50 chunk contract, DOCX paragraph/table order, no ingestion at import | chunk quality — measured live by the retrieval evaluator |
+| Router quality evaluator (`tests/integration/rag_router_eval.py`) | integration (real Ollama embeddings) | macro/per-class precision and recall, paraphrase consistency **and** correctness, out-of-domain leakage | model generation, the UI |
+| Retrieval evaluator (`tests/integration/rag_retrieval_eval.py`) | integration (real pgvector corpus) | Hit Rate@5, no-context behaviour, per-query latency, stored vector dimensions | whether the generated answer is grounded |
 | `services/chatbot/provenance.py` — `provenance_reply` | unit | which documents get named, the "AI, not a psychologist, no clients" claim, the empty-corpus fallback | fuzzy routing into this route, model behaviour on a miss |
 | `services/chatbot/` history assembly | unit | prompt budget, crisis filtering, ordering | real model output |
 | The live API over HTTP and `/realtime` (incl. `db/test_rls.sql`) | integration | real SQL, triggers (incl. who is notified of what), change notices, encryption at rest, RLS, Ollama | anything in the UI |
-| `features/<domain>/model.ts` (dashboard) | unit | directory filters, draft validation, publish gate, priority ordering | rendering, fetch |
-| `lib/notifications/model.ts` (dashboard) | unit | admin/counselor rows as one item, moved admin paths, badge, relative time | the panel, fetch |
 | `nearestSession`, `reminderPlan`, `freshAlerts`, `notificationTips`, `calendarDates`, `packages/utils` exports | unit | time/TZ math, session reminders, which inbox items get a banner, per-brand delivery advice, stress score, reactions | app screens, the OS scheduling and drawing them |
 | Dashboard journeys (`e2e/scenarios`) | e2e | sign-in, routing, a page rendering with real data | everything not asserted |
 
-Two seams are honest gaps rather than choices: `lib/api/client` has no tier because Node
-cannot resolve the dashboard's `@/` alias, and the mobile screens have no browser tier (see
+Dashboard unit seams and test rules live in
+[sajiwa-dashboard/docs/testing-conventions.md](https://github.com/melakhaa/sajiwa-dashboard/blob/main/docs/testing-conventions.md).
+One seam here is an honest gap: the mobile screens have no browser tier (see
 [Known gaps](#known-gaps)).
 
 ## Rules that bite in this repo
@@ -107,18 +109,24 @@ the first.
 
 **E2E** — a browser journey a student or counselor would recognise, and only that. If a
 check can be made at a lower tier, it belongs there: a browser test is the slowest, flakiest
-thing you can write.
+thing you can write. Journeys live here but drive the standalone dashboard, which must be
+running from its own checkout on port 3000 against this repo's API.
 
 ## Where each tier lives
 
 | Tier | Location | Runner |
 |------|----------|--------|
 | Unit (backend) | `apps/backend/tests/unit/*.py` | `unittest discover -s tests/unit` |
-| Unit (dashboard) | `apps/dashboard/{lib,features}/**/*.test.ts` | `node --test` + type stripping |
+| Unit (dashboard, separate repo) | `sajiwa-dashboard/{lib,features}/**/*.test.ts` | `npm test` in that repository |
 | Unit (mobile, packages) | `*.test.ts` beside the source | `node --test` + type stripping |
 | Integration (API) | `apps/backend/tests/integration/stack_smoke.py` | `tests/integration/run.sh` |
 | Integration (RLS) | `db/test_rls.sql` | same script, via `docker exec psql` |
 | E2E (dashboard) | `e2e/scenarios/*.mjs` | `e2e/run.mjs` → `betterwright run` |
+
+The dashboard now lives in [sajiwa-dashboard](https://github.com/melakhaa/sajiwa-dashboard).
+Run its unit tests there; this repository's `npm test` covers mobile, shared packages, and
+backend only. Browser journeys remain here and target the independently running dashboard
+on port 3000 and backend on port 8000; no sibling source checkout is required by unit tests.
 
 Every workspace exposes `test:unit`, so the root command is
 `npm run test:unit --workspaces --if-present && npm run backend:test:unit`. A new workspace
@@ -145,13 +153,19 @@ gets its own line.
   `{ exact: true }`.
 - Assert the redirect or the rendered heading, not a sleep.
 
+## RAG and semantic-routing coverage
+
+See the [test run guide](rag-semantic-routing-testing.md) for the unit, integration and
+evaluator commands, the gate values, the regression/frozen fixture rules and the known gaps.
+Historical C500 results are not a substitute for checked-in fixtures and reproducible runners.
+
 ## Known gaps
 
 - `packages/api-client` and `packages/ui-shared` have no unit tier. `storage.ts` imports
   React Native, so it needs a module shim before it can run under plain Node.
-- The dashboard has no integration tier: its modules import through the `@/` alias, which
-  Node cannot resolve without an extra loader. Its boundary is covered by the browser tier
-  instead.
-- Mobile has no browser tier. `react-native-web` is not the native app, and the student
-  journeys are covered at the API boundary; add one only when a mobile-only bug slips past.
+- Mobile has no browser tier. Expo web (`npm run web` in `apps/mobile`) is available for
+  manual end-to-end checks against the backend, but `react-native-web` is not the native
+  app and no browser suite runs it. Student journeys stay covered at the API boundary; add
+  a browser tier only when a mobile-only bug slips past. Manual web checks did catch a
+  web-only `Platform.constants` crash, so guard native-only APIs when touching shared UI.
 - No CI, by design. If that changes, the three tier commands above are the whole pipeline.

@@ -1,0 +1,142 @@
+{
+  "note": "Frozen retrieval set, written before any run of it. Reference phrases were checked against the source DOCX text, not against retrieval output.",
+  "source": "Buku Depresi REVISI FINAL.docx",
+  "citation": "Petunjuk Teknis Layanan Depresi (Kemenkes RI, 2021)",
+  "k": 5,
+  "min_similarity": 0.3,
+  "in_domain": [
+    {
+      "query": "Apa kriteria diagnosis depresi?",
+      "groups": [
+        [
+          "kriteria diagnosis depresi"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana menilai gangguan fungsi pada pasien depresi?",
+      "groups": [
+        [
+          "menilai adanya gangguan fungsi"
+        ]
+      ]
+    },
+    {
+      "query": "Kapan pasien dengan psikotik dan mania harus dirujuk?",
+      "groups": [
+        [
+          "psikotik dan mania",
+          "dirujuk"
+        ]
+      ]
+    },
+    {
+      "query": "Apa saja gejala somatik yang menyertai depresi?",
+      "groups": [
+        [
+          "gejala somatik"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana peran kader kesehatan jiwa?",
+      "groups": [
+        [
+          "kader kesehatan jiwa"
+        ]
+      ]
+    },
+    {
+      "query": "Apa itu terapi kognitif-perilaku?",
+      "groups": [
+        [
+          "terapi kognitif-perilaku"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana mengurangi risiko kekambuhan depresi?",
+      "groups": [
+        [
+          "mengurangi risiko kekambuhan"
+        ]
+      ]
+    },
+    {
+      "query": "Sebutkan obat golongan SNRI.",
+      "groups": [
+        [
+          "venlafaksin",
+          "duloksetin"
+        ]
+      ]
+    },
+    {
+      "query": "Obat antidepresan apa yang tersedia di puskesmas?",
+      "groups": [
+        [
+          "puskesmas",
+          "fluoksetin"
+        ]
+      ]
+    },
+    {
+      "query": "Apa upaya promotif untuk remaja?",
+      "groups": [
+        [
+          "upaya promotif",
+          "remaja"
+        ]
+      ]
+    },
+    {
+      "query": "Apa peran keluarga dalam penatalaksanaan penderita depresi?",
+      "groups": [
+        [
+          "penatalaksanaan penderita",
+          "keluarga"
+        ]
+      ]
+    },
+    {
+      "query": "Apa yang dimaksud stresor psikososial?",
+      "groups": [
+        [
+          "stresor psikososial"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana pemantauan reguler pasien depresi?",
+      "groups": [
+        [
+          "pemantauan reguler"
+        ]
+      ]
+    },
+    {
+      "query": "Apa tujuan promosi kesehatan jiwa?",
+      "groups": [
+        [
+          "promosi kesehatan jiwa"
+        ]
+      ]
+    },
+    {
+      "query": "Bagaimana penatalaksanaan depresi pada lansia?",
+      "groups": [
+        [
+          "lansia",
+          "penyakit penyerta"
+        ]
+      ]
+    }
+  ],
+  "out_of_domain": [
+    "Bagaimana cara membuat rendang?",
+    "Siapa pemenang liga Champions tahun ini?",
+    "Tolong jelaskan cara kerja mesin diesel.",
+    "Berapa harga tiket konser musik?",
+    "Bagaimana cara merawat tanaman monstera?"
+  ]
+}

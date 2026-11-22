@@ -52,9 +52,18 @@ dropped, so a killed stream's question is not sent twice when it is retried; and
 ## RAG ingestion & retrieval
 
 `apps/backend/scripts/embed.py` reads `apps/backend/docs/*.docx`, extracts paragraphs + tables,
-chunks at `size=500 / overlap=50`, embeds, and inserts into `documents` (`metadata.source`,
-`metadata.chunk`). Retrieval is `select * from match_documents(%s::vector, 0.3, k)` through
-`core/db.py` — see [postgresql-conventions.md](postgresql-conventions.md).
+chunks at `size=500 / overlap=50`, embeds, and writes `documents` (`metadata.source`,
+`metadata.chunk`). It is a **dry run by default**; `--apply` replaces each source atomically:
+all chunks are embedded and validated (768 dimensions) before the old rows are deleted, the
+replacement happens in one transaction, and the old rows are first dumped to a JSON file whose
+path is printed. Importing the module does nothing — the ingestion loop lives in `main()`.
+
+Retrieval is `select * from match_documents(%s::vector, 0.35, k)` (`rag.MIN_SIMILARITY`)
+plus a bounded slice of each
+hit's neighbouring chunks (`rag.NEIGHBOUR_WING`), because table rows and list items in the
+guide cross chunk boundaries. The returned entries keep the old shape (`content`, `metadata`,
+`similarity`) and stay at `k` or fewer. See [postgresql-conventions.md](postgresql-conventions.md).
+The measured gates are `tests/integration/rag_retrieval_eval.py`.
 
 - Pin model names; all call sites share `EMBED_MODEL` from `services/chatbot/rag.py`.
 - Every chunk carries `metadata.citation` — the label a student sees, written by
@@ -62,13 +71,23 @@ chunks at `size=500 / overlap=50`, embeds, and inserts into `documents` (`metada
   `"Petunjuk Teknis Layanan Depresi (Kemenkes RI, 2021)"`). The raw filename is internal and
   must not reach the model. A new document with no entry is ingested with `null` and the prompt
   falls back to its filename — add the entry when you add the file.
-- `build_messages` prefixes each chunk with `[<citation>]` and `RAG_SYSTEM_PROMPT` requires the
-  answer to open with it. That is what makes a follow-up "sumbernya dari mana?" answerable from
+- `build_messages` prefixes each chunk with `[<citation>]` in a separate **user-role data
+  message**, not in the system message. `RAG_SYSTEM_PROMPT` says to ignore instructions in
+  retrieved text/history and requires the answer to open with the citation. That is what makes a follow-up "sumbernya dari mana?" answerable from
   conversation history. Changing a citation is metadata-only: backfill with
   `update documents set metadata = metadata || jsonb_build_object('citation', …)` — no
   re-embed, because the vectors do not change.
-- `scripts/embed.py` **inserts, it does not replace**: re-running it against a populated
-  database duplicates every chunk. Clear or scope `documents` first.
+- Deletion during ingestion is gated by migration 012's `documents_replace_for_ingest`
+  policy: it fires when the transaction sets `app.embedding_ingest = 'on'`. The script uses
+  this flag, but a DB client can also set it; it is an ingestion guard, not an authorization
+  boundary against a compromised DB client.
+- Chunking was evaluated, not guessed: sentence-packed, one-unit-per-chunk and word-boundary
+  windows were all measured against the 15 retrieval fixtures and did not beat the plain
+  500/50 window (the word-backoff variant also pushed an out-of-domain query above the 0.3
+  threshold). Neighbour slices in `retrieve_docs` recover some, not all, boundary misses.
+  The 17 November calibration compared 0.30/0.35/0.40/0.45 across 45 domain and 15 OOD
+  regression queries: 0.35 removed the MySQL false positive without losing phrase hits
+  (13/15, 13/15, 12/15). This does not establish semantic relevance on unseen queries.
 - `nomic-embed-text-v2-moe` requires task prefixes and does not add them itself: documents are
   embedded as `"search_document: "`, queries as `"search_query: "`. The `QUERY_PREFIX` /
   `DOCUMENT_PREFIX` constants in `rag.py` are the single source of truth — keep the pair matched

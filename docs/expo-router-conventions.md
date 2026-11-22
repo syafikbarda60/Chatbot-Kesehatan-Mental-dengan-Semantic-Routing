@@ -1,7 +1,7 @@
 # Expo Router conventions
 
-`apps/mobile` uses **expo-router 6** for file-based routing/navigation; the dashboard is Next.js
-App Router ([nextjs-conventions.md](nextjs-conventions.md)). React Navigation 7 is the engine
+`apps/mobile` uses **expo-router 6** for file-based routing/navigation; the separate dashboard
+uses the Next.js App Router ([dashboard Next.js conventions](https://github.com/melakhaa/sajiwa-dashboard/blob/main/docs/nextjs-conventions.md)). React Navigation 7 is the engine
 underneath expo-router — never mount your own `NavigationContainer` or navigator, and prefer
 `useRouter()` / `useLocalSearchParams()` over React Navigation hooks in screens.
 
