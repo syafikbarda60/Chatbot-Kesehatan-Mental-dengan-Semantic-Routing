@@ -4,7 +4,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { apiGetMyCounselingRequests, type MyCounselingRequest } from '@prototype/api-client';
-import { nearestSession } from './upcomingSession';
+import { nearestSession, sessionNotes } from './upcomingSession';
 
 export function useUpcomingSession() {
   const [requests, setRequests] = useState<MyCounselingRequest[]>([]);
@@ -16,5 +16,5 @@ export function useUpcomingSession() {
 
   useFocusEffect(reload);
 
-  return { upcoming: nearestSession(requests), reload };
+  return { upcoming: nearestSession(requests), notes: sessionNotes(requests), reload };
 }

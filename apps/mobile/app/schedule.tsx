@@ -31,7 +31,7 @@ export default function ScheduleScreen() {
 
   const [counselors, setCounselors] = useState<Counselor[]>([]);
   const [slots, setSlots] = useState<CounselingSlot[]>([]);
-  const { upcoming, reload: reloadUpcoming } = useUpcomingSession();
+  const { upcoming, notes, reload: reloadUpcoming } = useUpcomingSession();
   const [selectedCounselor, setSelectedCounselor] = useState<Counselor | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<CounselingSlot | null>(null);
@@ -222,6 +222,29 @@ export default function ScheduleScreen() {
                 </NeuView>
               )}
             </FadeIn>
+
+            {/* ── What counselors wrote after attended sessions (the student part of the report) ── */}
+            {notes.length > 0 && (
+              <FadeIn>
+                <Text style={[s.sectionLabel, { color: colors.onSurface }]}>Catatan dari konselor</Text>
+                <View style={{ gap: 14 }}>
+                  {notes.map((n) => (
+                    <NeuView key={n.id} radius={24} style={s.noteCard}>
+                      <Text style={[s.sessionMeta, { color: colors.onSurfaceVariant }]}>
+                        {longDate(dayOf(n.start))} · {n.counselor ?? 'Konselor kampus'}
+                      </Text>
+                      <Text style={[s.noteBody, { color: colors.onSurface }]}>{n.summary}</Text>
+                      {n.followUp && (
+                        <View style={[s.noteFollowUp, { backgroundColor: colors.background, boxShadow: Neu.inset }]}>
+                          <Text style={[s.noteLabel, { color: colors.amber }]}>Saran untukmu</Text>
+                          <Text style={[s.noteBody, { color: colors.onSurface }]}>{n.followUp}</Text>
+                        </View>
+                      )}
+                    </NeuView>
+                  ))}
+                </View>
+              </FadeIn>
+            )}
 
             {counselors.length === 0 ? (
               <FadeIn>
@@ -414,6 +437,11 @@ const s = StyleSheet.create({
   sessionMeta: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   statusText: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
+
+  noteCard: { padding: 18, gap: 10 },
+  noteBody: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 21 },
+  noteFollowUp: { padding: 14, borderRadius: 16, gap: 4 },
+  noteLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_700Bold' },
 
   // Horizontal lists need vertical padding or the shadows get clipped
   hScroll: { marginHorizontal: -20 },

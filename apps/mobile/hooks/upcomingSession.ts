@@ -29,3 +29,13 @@ export function nearestSession(requests: MyCounselingRequest[], now: number = Da
     .filter((s): s is UpcomingSession => !!s && new Date(s.end).getTime() > now)
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
 }
+
+export type SessionNote = { id: string; start: string; counselor: string | null; summary: string; followUp: string | null };
+
+/** What counselors wrote for the student after attended sessions, newest first. */
+export function sessionNotes(requests: MyCounselingRequest[]): SessionNote[] {
+  return requests
+    .filter((r) => r.counseling_appointment_id && r.starts_at && r.report_summary)
+    .map((r) => ({ id: r.counseling_appointment_id!, start: r.starts_at!, counselor: r.counselor_name, summary: r.report_summary!, followUp: r.report_follow_up ?? null }))
+    .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+}
