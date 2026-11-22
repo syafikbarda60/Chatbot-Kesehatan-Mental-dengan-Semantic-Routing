@@ -150,8 +150,12 @@ def own_requests(student=Depends(get_current_user)):
     assigned it, the appointment actually booked (which may differ from the pick)."""
     rows=query("select cr.counseling_request_id,cr.status,cr.preferred_context,cr.created_at,"
                "cr.preferred_counselor_id,cr.preferred_starts_at,cr.preferred_ends_at,pk.name preferred_counselor_name,"
-               "a.counseling_appointment_id,a.counselor_id,ak.name counselor_name,a.starts_at,a.ends_at,a.status appointment_status "
+               "a.counseling_appointment_id,a.counselor_id,ak.name counselor_name,a.starts_at,a.ends_at,a.status appointment_status,"
+               # Only the student part of the session report (migration 014); RLS keeps the management part out of reach
+               "case when a.status='completed' then sr.summary end report_summary,case when a.status='completed' then sr.follow_up end report_follow_up,"
+               "case when a.status='completed' then sr.updated_at end report_updated_at "
                "from counseling_requests cr left join counseling_appointments a on a.counseling_request_id=cr.counseling_request_id "
+               "left join counseling_student_reports sr on sr.counseling_appointment_id=a.counseling_appointment_id "
                # users RLS hides counselor rows from a student; list_konselor() exposes just their names.
                "left join list_konselor() pk on pk.user_id=cr.preferred_counselor_id left join list_konselor() ak on ak.user_id=a.counselor_id "
                "where cr.student_id=%s order by cr.created_at desc limit 20",(student.id,),user_id=student.id)

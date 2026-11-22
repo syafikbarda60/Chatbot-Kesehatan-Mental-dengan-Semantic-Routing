@@ -145,7 +145,8 @@ def case_detail(student_id: UUID, counselor=Depends(counselor_access)):
         (sid,), user_id=counselor.id)
     # Only this counselor's own sessions with the student
     sessions = query(
-        "select a.counseling_appointment_id,a.starts_at,a.ends_at,a.status," + SERVICE_SQL + ",r.name resource_name "
+        "select a.counseling_appointment_id,a.starts_at,a.ends_at,a.status," + SERVICE_SQL + ",r.name resource_name,"
+        "exists(select 1 from counseling_management_reports m where m.counseling_appointment_id=a.counseling_appointment_id) has_report "
         "from counseling_appointments a left join counseling_resources r on r.counseling_resource_id=a.counseling_resource_id "
         "where a.counselor_id=%s and a.student_id=%s order by a.starts_at desc",
         (counselor.id, sid), user_id=counselor.id)

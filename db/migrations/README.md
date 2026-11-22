@@ -47,4 +47,6 @@ psql $env:DATABASE_OWNER_URL -tAc "select version from schema_migrations order b
 
 `013_token_revocation.sql` adds `revoked_tokens`, which `POST /auth/logout` writes and `get_current_user` checks. Apply it after `012_dass21_batch.sql`.
 
+`014_session_attendance_reports.sql` lets the counselor of a session (or an admin) record attendance through `record_counseling_attendance()` (`SECURITY DEFINER`, since counselors cannot write appointments) and adds the two report tables: `counseling_student_reports`, readable by the student, and `counseling_management_reports`, readable only by that counselor and admins. Apply it after `013_token_revocation.sql`.
+
 `015_account_soft_delete.sql` adds `users.deleted_at`. `DELETE /accounts/{id}` anonymises and marks an account that counseling history still references instead of deleting it, and `get_current_user` and the account list skip such rows. It depends only on `013_token_revocation.sql`.
