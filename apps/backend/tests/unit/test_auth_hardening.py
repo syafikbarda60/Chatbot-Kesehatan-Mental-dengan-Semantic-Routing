@@ -10,6 +10,8 @@ import unittest
 from unittest.mock import patch
 
 os.environ.setdefault("JWT_SECRET", "isolated-hardening-test-key")
+# routes.journal imports core.security, which refuses to load without a key
+os.environ.setdefault("ENCRYPTION_KEY", "Gw3yS0rB6h3LxK8m1Qe2nV7pZ4tA9cJ5uD0fH6kW2sY=")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 fake_db = sys.modules.get("core.db") or types.ModuleType("core.db")
