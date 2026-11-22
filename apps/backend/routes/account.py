@@ -1,8 +1,8 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Literal
 from datetime import datetime, timezone
-import os, uuid, secrets
+import os, uuid, secrets, time
 
 import bcrypt
 from dotenv import load_dotenv
@@ -25,23 +25,61 @@ def _verify(pw: str, hashed: Optional[str]) -> bool:
     return bool(hashed) and bcrypt.checkpw(pw.encode(), hashed.encode())
 
 
+# MASVS-AUTH-1: brute-force guard for passwords and the 6-digit reset OTP.
+# ponytail: in-process memory, so each worker counts on its own and a restart forgets;
+# move it to Redis or the database once the backend runs with several workers.
+MAX_FAILS = 5
+FAIL_WINDOW_S = 15 * 60
+_fails: dict[tuple, list[float]] = {}
+
+
+def _check_throttle(key: tuple) -> None:
+    now = time.monotonic()
+    recent = [t for t in _fails.get(key, ()) if now - t < FAIL_WINDOW_S]
+    if recent:
+        _fails[key] = recent
+    else:
+        _fails.pop(key, None)
+    if len(recent) >= MAX_FAILS:
+        wait = int(FAIL_WINDOW_S - (now - recent[0])) + 1
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Terlalu banyak percobaan. Coba lagi dalam {wait // 60 + 1} menit.",
+            headers={"Retry-After": str(wait)},
+        )
+
+
+def _record_fail(key: tuple) -> None:
+    _fails.setdefault(key, []).append(time.monotonic())
+
+
+def _client_key(http: Request, kind: str, email: str) -> tuple:
+    return (kind, http.client.host if http.client else "", email.strip().lower())
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
 
+# MASVS-AUTH-1: same 8-character floor the app's register screen enforces (a 1-character password was
+# accepted). MASVS-CODE-4: name and nim match users.name varchar(100) / users.nim varchar(14), which
+# used to overflow into HTTP 500.
+Password = Field(min_length=8, max_length=128)
+
+
 class CreateAccountRequest(BaseModel):
     email: EmailStr
-    password: str
-    name: str
+    password: str = Password
+    name: str = Field(min_length=1, max_length=100)
     role: Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"] = "mahasiswa"
-    nim: Optional[str] = None
+    nim: Optional[str] = Field(default=None, max_length=14)
 
 
 class UpdateAccountRequest(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
     role: Optional[Literal["mahasiswa", "konselor", "admin", "pemangku_jabatan"]] = None
-    nim: Optional[str] = None
+    nim: Optional[str] = Field(default=None, max_length=14)
 
 class ResetPasswordRequest(BaseModel):
     email: EmailStr
@@ -49,7 +87,7 @@ class ResetPasswordRequest(BaseModel):
 class ConfirmPasswordResetRequest(BaseModel):
     email: EmailStr
     otp: str
-    new_password: str
+    new_password: str = Password
 
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
@@ -78,7 +116,9 @@ def register(request: CreateAccountRequest):
 
 
 @router.post("/auth/login")
-def login(request: LoginRequest):
+def login(request: LoginRequest, http: Request):
+    key = _client_key(http, "login", request.email)
+    _check_throttle(key)
     rows = query(
         "select user_id, email, name, nim, role, password_hash "
         "from auth_lookup(%s)",
@@ -87,11 +127,13 @@ def login(request: LoginRequest):
     user = rows[0] if rows else None
 
     if not user or not _verify(request.password, user["password_hash"]):
+        _record_fail(key)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email atau password salah",
         )
 
+    _fails.pop(key, None)
     user_id = str(user["user_id"])
     token = create_token(user_id, user["email"])
 
@@ -147,7 +189,9 @@ def request_password_reset(request: ResetPasswordRequest, background: Background
 
 
 @router.post("/auth/reset-password/confirm")
-def confirm_password_reset(request: ConfirmPasswordResetRequest):
+def confirm_password_reset(request: ConfirmPasswordResetRequest, http: Request):
+    key = _client_key(http, "otp", request.email)
+    _check_throttle(key)
     rows = query(
         "select otp_hash, expires_at, used from password_resets where email = %s",
         (request.email,),
@@ -159,6 +203,7 @@ def confirm_password_reset(request: ConfirmPasswordResetRequest):
         or rec["expires_at"] < datetime.now(timezone.utc)
         or not _verify(request.otp, rec["otp_hash"])
     ):
+        _record_fail(key)
         raise HTTPException(status_code=400, detail=RESET_REJECTED)
 
     users = query("select user_id from auth_lookup(%s)", (request.email,))

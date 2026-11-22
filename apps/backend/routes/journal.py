@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -73,7 +74,7 @@ def get_today_journal(user=Depends(get_current_user)):
 
 @router.patch("/{journal_id}")
 def update_journal(
-    journal_id: str,
+    journal_id: UUID,  # MASVS-CODE-4: a non-UUID id used to reach Postgres and return 500
     request: UpdateJournalRequest,
     user=Depends(get_current_user),
 ):
@@ -99,7 +100,7 @@ def update_journal(
 
 
 @router.delete("/{journal_id}", status_code=status.HTTP_200_OK)
-def delete_journal(journal_id: str, user=Depends(get_current_user)):
+def delete_journal(journal_id: UUID, user=Depends(get_current_user)):
     rows = query(
         "delete from journals where journal_id = %s and user_id = %s returning journal_id",
         (journal_id, user.id),
